@@ -19,7 +19,7 @@ IPAddress gateway(192,168,1,1);
 IPAddress subnet(255,255,255,0);
 
 #define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
-#define TEMP_MEASURE_PERIOD 1  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
+#define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -49,7 +49,7 @@ String getDs18x20Temperature()
   {
     int16_t tempR = sensors.getTemp(insideThermometer);
     char strtmp[10];
-    dtostrf(sensors.rawToCelsius(tempR), 0, 2, strtmp);
+    dtostrf(sensors.rawToCelsius(tempR), 0, 1, strtmp);
     temperature = strtmp;
     DS1820Millis = millis();
     sensors.requestTemperatures();
