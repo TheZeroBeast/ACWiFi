@@ -6,20 +6,62 @@
 #include <stdio.h>
 #include <string.h>
 #include "MHI-AC-Ctrl-core.h"
+#include <OneWire.h>            // https://www.pjrc.com/teensy/td_libs_OneWire.html
+#include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 // Stored network credentials
 const char* filename = "/credentials.txt";
+
+boolean firstrun = true;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
 IPAddress subnet(255,255,255,0);
 
+#define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
+#define TEMP_MEASURE_PERIOD 1  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
+DeviceAddress insideThermometer;     // arrays to hold device address
+
+void setup_ds18x20() 
+{
+  sensors.begin();
+  Serial.printf_P(PSTR("Found %i DS18xxx family devices.\n"), sensors.getDS18Count());
+  if (!sensors.getAddress(insideThermometer, 0))
+    Serial.println(F("Unable to find address for Device 0"));
+  else
+    Serial.printf_P(PSTR("Device 0 Address: 0x%02x\n"), insideThermometer);
+  sensors.setResolution(insideThermometer, 9); // set the resolution to 9 bit
+  sensors.setWaitForConversion(false);
+  sensors.requestTemperatures(); // Send the command to get temperatures
+}
+
+String getDs18x20Temperature() 
+{
+  String temperature;
+  static unsigned long DS1820Millis = millis();  
+  if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstrun)) 
+  {
+    int16_t tempR = sensors.getTemp(insideThermometer);
+    char strtmp[10];
+    dtostrf(sensors.rawToCelsius(tempR), 0, 2, strtmp);
+    temperature = strtmp;
+    DS1820Millis = millis();
+    sensors.requestTemperatures();
+    firstrun = false;
+  }
+  return temperature;
+}
+
 String getTemperature() 
 {
-  return String("1");
+  return getDs18x20Temperature();
+  //return String("1");
 }
   
 String getHumidity() 
@@ -99,7 +141,6 @@ void setup()
       Serial.println("PASSPHRASE: " + passphrase);
     }
   }  
-  
   // Try Station WiFi stored credentials, and if they fail to connect after 30 seconds, start up in access point mode
   if(apmode)
   {
@@ -113,7 +154,7 @@ void setup()
     WiFi.mode(WIFI_STA);
     Serial.println("STATION Mode Starting.");
     WiFi.begin(ssid, passphrase);
-    for(int i = 0; i < 30; i++) // 30 second timeout
+    for(int i = 0; i < 10; i++) // 30 second timeout
     {
       if (WiFi.status() == WL_CONNECTED) break;
       Serial.println(String(i)+"s....");
@@ -128,7 +169,10 @@ void setup()
       WiFi.softAP(apssid); // enable AP mode
     }
   }
-    
+  
+  Serial.println("Initializing DS18B20 temperature sensor.");
+  setup_ds18x20();
+  
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", String(), false, processor);
