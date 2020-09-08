@@ -10,11 +10,6 @@
 // Stored network credentials
 const char* filename = "/credentials.txt";
 
-// Set LED GPIO
-const int ledPin = 2;
-// Stores LED state
-String ledState;
-
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -38,14 +33,7 @@ String processor(const String& var)
 {
   Serial.println(var);
   if(var == "STATE"){
-    if(digitalRead(ledPin)){
-      ledState = "ON";
-    }
-    else{
-      ledState = "OFF";
-    }
-    Serial.print(ledState);
-    return ledState;
+    // do nothing for STATE yet....
   }
   else if (var == "TEMPERATURE"){
     return getTemperature();
@@ -66,7 +54,6 @@ void setup()
   String apssid = "ACWiFi " + String(ESP.getChipId());
   // Serial port for debugging purposes
   Serial.begin(115200);
-  //pinMode(ledPin, OUTPUT);
 
   // Initialize SPIFFS
   if(!SPIFFS.begin())
@@ -129,16 +116,16 @@ void setup()
   });
 
   // Route to set GPIO to HIGH
-  server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, HIGH);    
-    request->send(SPIFFS, "/index.html", String(), false, processor);
-  });
+  //server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  digitalWrite(ledPin, HIGH);    
+  //  request->send(SPIFFS, "/index.html", String(), false, processor);
+  //});
   
   // Route to set GPIO to LOW
-  server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, LOW);    
-    request->send(SPIFFS, "/index.html", String(), false, processor);
-  });
+  //server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  digitalWrite(ledPin, LOW);    
+  //  request->send(SPIFFS, "/index.html", String(), false, processor);
+  //});
 
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getTemperature().c_str());
