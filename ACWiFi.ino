@@ -10,6 +10,10 @@
 // Stored network credentials
 const char* filename = "/credentials.txt";
 
+IPAddress local_IP(192,168,1,1);
+IPAddress gateway(192,168,1,1);
+IPAddress subnet(255,255,255,0);
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -53,55 +57,75 @@ void setup()
   char * pch;
   String apssid = "ACWiFi " + String(ESP.getChipId());
   // Serial port for debugging purposes
+  WiFi.mode(WIFI_OFF); // set initial wifi mode
   Serial.begin(115200);
-
+  Serial.println(" ");
+  Serial.println("********************************");
+  Serial.println("*     AC WiFi Adaptor v1.0     *");
+  Serial.println("*           start-up           *");
+  Serial.println("********************************");
   // Initialize SPIFFS
+  Serial.println("Mounting SPIFFS.");
   if(!SPIFFS.begin())
   {
-    Serial.println("An Error has occurred while mounting SPIFFS");
+    Serial.println("An Error has occurred while mounting SPIFFS.");
+    Serial.println("Unable to continue booting.");
     return;
-  }
-
-  // Retrieve stored station SSID and passphrase from SPIFFS
-  File f = SPIFFS.open(filename, "r");
-  if(!f)
-  {
-    apmode = true;
-    Serial.println("Failed to open credentials.txt from SPIFFS");
   }
   else
   {
-    Serial.println("Reading credentials.txt from SPIFFS");
-    for(int i = 0; i < f.size(); i++)
+    Serial.println("SPIFFS mounted successfully.");
+    // Retrieve stored station SSID and passphrase from SPIFFS
+    File f = SPIFFS.open(filename, "r");
+    if(!f)
     {
-      credentials += (char)f.read();
+      apmode = true;
+      Serial.println("Failed to open credentials.txt from SPIFFS.");
     }
-    f.close();
-    // Parse ssid and passphrase from credentials string
-    int a = credentials.indexOf('\n');
-    ssid = credentials.substring(0, a-1);
-    passphrase = credentials.substring(a+1, credentials.length() - 1);
-  }
+    else
+    {
+      Serial.println("Reading credentials.txt from SPIFFS.");
+      for(int i = 0; i < f.size(); i++)
+      {
+        credentials += (char)f.read();
+      }
+      f.close();
+      // Parse ssid and passphrase from credentials string
+      int a = credentials.indexOf('\n');
+      ssid = credentials.substring(0, a-1);
+      passphrase = credentials.substring(a+1, credentials.length());
+      Serial.println("STATION WiFi credentials loaded from SPIFFS.");
+      Serial.println("SSID: " + ssid);
+      Serial.println("PASSPHRASE: " + passphrase);
+    }
+  }  
   
   // Try Station WiFi stored credentials, and if they fail to connect after 30 seconds, start up in access point mode
   if(apmode)
   {
-    Serial.println("AP Mode Starting, no STATION credentials found");
+    Serial.println("AP Mode Starting, no STATION credentials found.");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(local_IP, gateway, subnet);
     WiFi.softAP(apssid); // start open access point
   }
   else
   {
-    Serial.println("STATION Mode Starting");
+    WiFi.mode(WIFI_STA);
+    Serial.println("STATION Mode Starting.");
     WiFi.begin(ssid, passphrase);
-    for(int i = 0; i < 30; i++)
+    for(int i = 0; i < 30; i++) // 30 second timeout
     {
       if (WiFi.status() == WL_CONNECTED) break;
+      Serial.println(String(i)+"s....");
       delay(1000);      
     }
     if (WiFi.status() != WL_CONNECTED) 
     {
-      Serial.println("AP Mode Starting, failed to connect to STATION");
-      WiFi.softAP(apssid); // start open access point 
+      WiFi.disconnect(true); // disconnect from access point and turn off STATION mode.
+      Serial.println("AP Mode Starting, failed to connect to STATION.");
+      WiFi.mode(WIFI_AP);
+      WiFi.softAPConfig(local_IP, gateway, subnet);
+      WiFi.softAP(apssid); // enable AP mode
     }
   }
     
