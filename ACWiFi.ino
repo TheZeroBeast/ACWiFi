@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <stdio.h>
 #include <string.h>
+#include "MHI-AC-Ctrl-core.h"
 
 // Stored network credentials
 const char* filename = "/credentials.txt";
