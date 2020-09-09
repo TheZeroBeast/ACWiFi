@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "MHI-AC-Ctrl-core.h"
-#include <OneWire.h>            // https://www.pjrc.com/teensy/td_libs_OneWire.html
-#include <DallasTemperature.h>  // https://github.com/milesburton/Arduino-Temperature-Control-Library
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 // Stored network credentials
 const char* filename = "/credentials.txt";
