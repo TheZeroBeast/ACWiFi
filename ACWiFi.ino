@@ -48,7 +48,7 @@ String getDs18x20Temperature()
   if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstrun)) 
   {
     int16_t tempR = sensors.getTemp(insideThermometer);
-    char strtmp[10];
+    char strtmp[20];
     dtostrf(sensors.rawToCelsius(tempR), 0, 1, strtmp);
     temperature = strtmp;
     DS1820Millis = millis();
