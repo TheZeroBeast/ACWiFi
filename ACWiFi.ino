@@ -9,6 +9,8 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
+
 // Stored network credentials
 const char* filename = "/credentials.txt";
 
@@ -47,10 +49,7 @@ String getDs18x20Temperature()
   static unsigned long DS1820Millis = millis();  
   if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstrun)) 
   {
-    int16_t tempR = sensors.getTemp(insideThermometer);
-    char strtmp[20];
-    dtostrf(sensors.rawToCelsius(tempR), 0, 1, strtmp);
-    temperature = strtmp;
+    temperature = sensors.getTempCByIndex(0);
     DS1820Millis = millis();
     sensors.requestTemperatures();
     firstrun = false;
@@ -206,8 +205,10 @@ void setup()
   server.on("/pressure", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getPressure().c_str());
   });
-
+  //Serial.println("Initializing MHI SPI.");
+  //mhi_ac_ctrl_core.init();
   // Start server
+  Serial.println("Starting web server.");
   server.begin();
 }
  

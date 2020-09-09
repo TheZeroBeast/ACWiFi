@@ -16,6 +16,12 @@ h1 {
 p {
   font-size: 1.5rem;
 }
+.boxed {
+  border: 1px solid black;
+  margin-left: auto;
+  margin-right: auto;
+  width: 300px;
+}
 .button {
   display: inline-block;
   background-color: #008CBA;
@@ -30,6 +36,9 @@ p {
 }
 .button2 {
   background-color: #f44336;
+}
+.button3 {
+  background-color: #800080;
 }
 .units {
   font-size: 1.2rem;
