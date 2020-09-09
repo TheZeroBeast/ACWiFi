@@ -171,6 +171,11 @@ void setup()
   
   Serial.println("Initializing DS18B20 temperature sensor.");
   setup_ds18x20();
+
+// Route for setup web page
+  server.on("/setup.html", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/setup.html", String(), false, processor);
+  });
   
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -198,13 +203,6 @@ void setup()
     request->send_P(200, "text/plain", getTemperature().c_str());
   });
   
-  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getHumidity().c_str());
-  });
-  
-  server.on("/pressure", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getPressure().c_str());
-  });
   //Serial.println("Initializing MHI SPI.");
   //mhi_ac_ctrl_core.init();
   // Start server
