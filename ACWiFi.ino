@@ -40,7 +40,7 @@ void setup_ds18x20()
     Serial.println(F("Unable to find address for Device 0"));
   else
     Serial.printf_P(PSTR("Device 0 Address: 0x%02x\n"), insideThermometer);
-  sensors.setResolution(insideThermometer, 12); // set the resolution to 12 bit
+  sensors.setResolution(insideThermometer, 9); // set the resolution to 9 bit
   sensors.setWaitForConversion(false);
   sensors.requestTemperatures(); // Send the command to get temperatures
 }
@@ -74,12 +74,6 @@ String processor(const String& var)
   else if (var == "TEMPERATURE"){
     return getTemperature();
   }
-  else if (var == "HUMIDITY"){
-    return getHumidity();
-  }
-  else if (var == "PRESSURE"){
-    return getPressure();
-  }  
 }
  
 void setup()
