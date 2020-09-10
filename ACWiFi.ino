@@ -16,6 +16,7 @@ MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 const char* filename = "/credentials.txt";
 
 boolean firstrun = true;
+float temptrim = 6.2;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -39,7 +40,7 @@ void setup_ds18x20()
     Serial.println(F("Unable to find address for Device 0"));
   else
     Serial.printf_P(PSTR("Device 0 Address: 0x%02x\n"), insideThermometer);
-  sensors.setResolution(insideThermometer, 9); // set the resolution to 9 bit
+  sensors.setResolution(insideThermometer, 12); // set the resolution to 12 bit
   sensors.setWaitForConversion(false);
   sensors.requestTemperatures(); // Send the command to get temperatures
 }
@@ -50,7 +51,7 @@ String getDs18x20Temperature()
   static unsigned long DS1820Millis = millis();  
   if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstrun)) 
   {
-    temperature = sensors.getTempCByIndex(0);
+    temperature = String(float(sensors.getTempC(insideThermometer)) - temptrim);
     DS1820Millis = millis();
     sensors.requestTemperatures();
     firstrun = false;
@@ -61,23 +62,12 @@ String getDs18x20Temperature()
 String getTemperature() 
 {
   return getDs18x20Temperature();
-  //return String("1");
 }
   
-String getHumidity() 
-{
-  return String("2");
-}
-
-String getPressure() 
-{
-  return String("3");
-}
-
 // Replaces placeholder with LED state value
 String processor(const String& var)
 {
-  Serial.println(var);
+  //Serial.println(var); // turn on for debugging purposes
   if(var == "STATE"){
     // do nothing for STATE yet....
   }
@@ -224,9 +214,10 @@ void setup()
     request->send_P(200, "text/plain", getTemperature().c_str());
   });
   
-  //Serial.println("Initializing MHI SPI.");
-  //mhi_ac_ctrl_core.init();
-  // Start server
+  Serial.println("Initializing MHI SPI.");
+  mhi_ac_ctrl_core.init();
+  
+  // Start web server
   Serial.println("Starting web server.");
   server.begin();
 }
