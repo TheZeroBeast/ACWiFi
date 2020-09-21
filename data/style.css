@@ -43,6 +43,12 @@ p {
 .button5 {
   background-color: #F11F85;
 }
+.button6 {
+  background-color: #15CA70;
+}
+.button7 {
+  background-color: #9611F8;
+}
 .units {
   font-size: 1.2rem;
  }
@@ -50,6 +56,10 @@ p {
   font-size: 1.5rem;
   vertical-align:middle;
   padding-bottom: 15px;
+}
+.submit-button {
+  font-size: 1.5rem;
+  vertical-align:middle;
 }
 .center {
   display: block;

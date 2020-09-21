@@ -8,18 +8,27 @@
 </head>
 <body> 
   <h1>AC WiFi v1.0</h1>
+  <h2>Remote Control</h2>
   <p>
       <h3>Power</h3>
-      <a href="/on"><button class="button">ON</button></a>
-      <a href="/off"><button class="button button2">OFF</button></a>
-	  <h3>Set Mode</h3>
-	  <a href="/cooling"><button class="button button4">COOLING</button></a>
-      <a href="/heating"><button class="button button5">HEATING</button></a>
+      <a href="/poweron"><button class="button">ON</button></a>
+      <a href="/poweroff"><button class="button button2">OFF</button></a>
+	  <h3>Mode</h3>
+	  <a href="/modecool"><button class="button">COOL</button></a>
+	  <a href="/modedry"><button class="button button4">DRY</button></a>
+      <a href="/modeheating"><button class="button button5">HEATING</button></a>
+	  <a href="/modefan"><button class="button button6">FAN</button></a>
+	  <a href="/modeauto"><button class="button button7">AUTO</button></a>
 	  <h3>Set Temperature</h3>
-	  <label for="settemp">Set Temp:</label>
-	  <input type="text" id="settemp" name="settemp" size="5"><br><br>
-	  <input type="submit" value="Set Temp">
+	  <label class="sensor-labels" for="settemp">Current Setting: </label><span class="sensor-labels" id="currenttempsetting">%CURRENTTEMPSETTING%</span><sup class="units">&deg;C</sup><br>
+	  <label class="sensor-labels" for="settemp">New Setting: </label><input class="submit-button" type="text" id="settemp" name="settemp" size="3"><input class="submit-button" type="submit" value="Set">
+	  <h3>Fan Speed</h3>
+	  <a href="/fanspeed1"><button class="button button6">1</button></a>
+	  <a href="/fanspeed2"><button class="button button6">2</button></a>
+	  <a href="/fanspeed3"><button class="button button6">3</button></a>
+	  <a href="/fanspeed4"><button class="button button6">4</button></a>
   </p>
+  <h2>Sensor Data</h2>
   <p>
     <span class="sensor-labels">Room Temperature</span>
     <span id="temperature">%TEMPERATURE%</span>
@@ -40,27 +49,16 @@
     xhttp.open("GET", "/temperature", true);
     xhttp.send();
   }, 1000 ) ;
-
+  
   setInterval(function ( ) {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
       if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("humidity").innerHTML = this.responseText;
+        document.getElementById("currenttempsetting").innerHTML = this.responseText;
       }
     };
-    xhttp.open("GET", "/humidity", true);
+    xhttp.open("GET", "/currenttempsetting", true);
     xhttp.send();
-  }, 10000 ) ;
-
-  setInterval(function ( ) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("pressure").innerHTML = this.responseText;
-      }
-    };
-    xhttp.open("GET", "/pressure", true);
-    xhttp.send();
-  }, 10000 ) ;
+  }, 1000 ) ;
 </script>
 </html>

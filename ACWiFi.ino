@@ -33,6 +33,8 @@ OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate 
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress insideThermometer;     // arrays to hold device address
 
+void(* resetFunc) (void) = 0; // declare reset function at address 0, call resetFunc() to reset the system.
+
 void setup_ds18x20() 
 {
   sensors.begin();
@@ -64,6 +66,11 @@ String getTemperature()
 {
   return getDs18x20Temperature();
 }
+
+String getCurrentTempSetting()
+{
+  return String(float(25.0));
+}
   
 // Replaces placeholder with LED state value
 String processor(const String& var)
@@ -76,7 +83,16 @@ String processor(const String& var)
     return getTemperature();
   }
 }
- 
+
+void UpdateWiFiCreds(String ssid, String pass)
+{
+  SPIFFS.remove(filename); // delete old credentials
+  File f = SPIFFS.open(filename, "w"); // store new credentials
+  f.println(ssid);
+  f.println(pass);
+  f.close();
+}
+
 void setup()
 {
   boolean apmode = false;
@@ -212,24 +228,39 @@ void setup()
     request->send(SPIFFS, "/style.css", "text/css");
   });
 
-  // Route to set GPIO to HIGH
-  //server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
-  //  digitalWrite(ledPin, HIGH);    
-  //  request->send(SPIFFS, "/index.html", String(), false, processor);
-  //});
-  
-  // Route to set GPIO to LOW
-  //server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
-  //  digitalWrite(ledPin, LOW);    
-  //  request->send(SPIFFS, "/index.html", String(), false, processor);
-  //});
-
-  //todo - add routes for /cooling and /heating
-
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getTemperature().c_str());
   });
-  
+
+  server.on("/currenttempsetting", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", getCurrentTempSetting().c_str());
+  });
+
+  server.on("/updatewifi", HTTP_GET, [](AsyncWebServerRequest *request){
+    String newssid;
+    String newpass;
+    if (request->hasParam("ssid"))
+    {
+      newssid = request->getParam("ssid")->value();
+      newpass = request->getParam("pass")->value();
+      UpdateWiFiCreds(newssid, newpass);
+      request->send_P(200, "text/plain", "WiFi Settings Updated OK, restarting system in 5 seconds.");
+      Serial.println("*******************************");
+      Serial.println("*        Updating WiFi        *");
+      Serial.println("*         Credentials         *");
+      Serial.println("*******************************");
+      Serial.println("New SSID: " + newssid);
+      Serial.println("New PASS: " + newpass);
+      Serial.println("*******************************");
+      Serial.println("Restarting system in 5 seconds!");
+      Serial.println("*******************************");
+      delay(5000);
+      resetFunc();
+    }
+    else
+      request->send_P(200, "text/plain", "Nothing to update");
+  });
+    
   Serial.println("Initializing MHI SPI.");
   mhi_ac_ctrl_core.init();
   
@@ -242,5 +273,3 @@ void loop()
 {
   ArduinoOTA.handle();
 }
-
-void(* resetFunc) (void) = 0; // declare reset function at address 0, call resetFunc() to reset the system.
