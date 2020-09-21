@@ -138,7 +138,7 @@ void setup()
     WiFi.mode(WIFI_STA);
     Serial.println("STATION Mode Starting.");
     WiFi.begin(ssid, passphrase);
-    for(int i = 0; i < 10; i++) // 30 second timeout
+    for(int i = 0; i < 30; i++) // 30 second timeout
     {
       if (WiFi.status() == WL_CONNECTED) break;
       Serial.println(String(i)+"s....");
