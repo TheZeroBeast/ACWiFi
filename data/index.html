@@ -9,12 +9,19 @@
 <body> 
   <h1>AC WiFi v1.0</h1>
   <p>
-      <h3>Power Control</h3>
+      <h3>Power</h3>
       <a href="/on"><button class="button">ON</button></a>
       <a href="/off"><button class="button button2">OFF</button></a>
+	  <h3>Set Mode</h3>
+	  <a href="/cooling"><button class="button button4">COOLING</button></a>
+      <a href="/heating"><button class="button button5">HEATING</button></a>
+	  <h3>Set Temperature</h3>
+	  <label for="settemp">Set Temp:</label>
+	  <input type="text" id="settemp" name="settemp" size="5"><br><br>
+	  <input type="submit" value="Set Temp">
   </p>
   <p>
-    <span class="sensor-labels">Temperature</span>
+    <span class="sensor-labels">Room Temperature</span>
     <span id="temperature">%TEMPERATURE%</span>
     <sup class="units">&deg;C</sup>
   </p>

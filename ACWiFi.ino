@@ -9,6 +9,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
+#include <ArduinoJson.h>
 
 MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 
@@ -177,6 +178,25 @@ void setup()
   Serial.println("Initializing DS18B20 temperature sensor.");
   setup_ds18x20();
 
+// Route for api status request
+  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
+    String JSON;
+    StaticJsonDocument<1000> jsonBuffer;
+    //load test data
+    jsonBuffer["field1"] = "Test Field 1";
+    jsonBuffer["field2"] = "Test Field 2";
+    jsonBuffer["field3"] = "Test Field 3";
+    jsonBuffer["field4"] = "Test Field 4";
+    jsonBuffer["field5"] = "Test Field 5";
+    jsonBuffer["field6"] = "Test Field 6";
+    jsonBuffer["field7"] = "Test Field 7";
+    jsonBuffer["field8"] = "Test Field 8";
+    jsonBuffer["field9"] = "Test Field 9";
+    jsonBuffer["field10"] = "Test Field 10";
+    serializeJson(jsonBuffer, JSON);
+    request->send(200, PSTR("text/html"), JSON);
+  });
+
 // Route for setup web page
   server.on("/setup.html", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/setup.html", String(), false, processor);
@@ -203,6 +223,8 @@ void setup()
   //  digitalWrite(ledPin, LOW);    
   //  request->send(SPIFFS, "/index.html", String(), false, processor);
   //});
+
+  //todo - add routes for /cooling and /heating
 
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getTemperature().c_str());
