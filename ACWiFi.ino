@@ -10,6 +10,7 @@
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
 #include <ArduinoJson.h>
+#include <WebSerial.h>
 
 MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 
@@ -34,6 +35,15 @@ DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Tem
 DeviceAddress insideThermometer;     // arrays to hold device address
 
 void(* resetFunc) (void) = 0; // declare reset function at address 0, call resetFunc() to reset the system.
+
+void recvMsg(uint8_t *data, size_t len){
+  WebSerial.println("Received Data...");
+  String d = "";
+  for(int i=0; i < len; i++){
+    d += char(data[i]);
+  }
+  WebSerial.println(d);
+}
 
 void setup_ds18x20() 
 {
@@ -263,6 +273,10 @@ void setup()
     
   Serial.println("Initializing MHI SPI.");
   mhi_ac_ctrl_core.init();
+
+  // Start web serial monitor (can be found at http://ipaddress/webserial)
+  WebSerial.begin(&server);
+  WebSerial.msgCallback(recvMsg);
   
   // Start web server
   Serial.println("Starting web server.");
