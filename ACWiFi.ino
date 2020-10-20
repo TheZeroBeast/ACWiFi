@@ -10,7 +10,7 @@
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
 #include <ArduinoJson.h>
-#include <WebSerial.h>
+#include "html.h"
 
 MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 
@@ -35,15 +35,6 @@ DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Tem
 DeviceAddress insideThermometer;     // arrays to hold device address
 
 void(* resetFunc) (void) = 0; // declare reset function at address 0, call resetFunc() to reset the system.
-
-void recvMsg(uint8_t *data, size_t len){
-  WebSerial.println("Received Data...");
-  String d = "";
-  for(int i=0; i < len; i++){
-    d += char(data[i]);
-  }
-  WebSerial.println(d);
-}
 
 void setup_ds18x20() 
 {
@@ -105,6 +96,7 @@ void UpdateWiFiCreds(String ssid, String pass)
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT); 
   boolean apmode = false;
   String credentials, ssid, passphrase;
   char * pch;
@@ -224,18 +216,15 @@ void setup()
   });
 
 // Route for setup web page
-  server.on("/setup.html", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/setup.html", String(), false, processor);
+  String setuppage = SETUP_page;
+  server.on("/setup.html", HTTP_GET, [setuppage](AsyncWebServerRequest *request){
+    request->send(200, "text/html", setuppage);
   });
   
   // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", String(), false, processor);
-  });
-  
-  // Route to load style.css file
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/style.css", "text/css");
+  String indexpage = INDEX_page;
+  server.on("/", HTTP_GET, [indexpage](AsyncWebServerRequest *request){
+    request->send(200, "text/html", indexpage);
   });
 
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -274,16 +263,16 @@ void setup()
   Serial.println("Initializing MHI SPI.");
   mhi_ac_ctrl_core.init();
 
-  // Start web serial monitor (can be found at http://ipaddress/webserial)
-  WebSerial.begin(&server);
-  WebSerial.msgCallback(recvMsg);
-  
   // Start web server
   Serial.println("Starting web server.");
-  server.begin();
+  server.begin();  
 }
  
 void loop()
 {
   ArduinoOTA.handle();
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(250);
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(250);  
 }

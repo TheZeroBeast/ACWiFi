@@ -30,7 +30,7 @@ const byte opdata[][2] PROGMEM = {
 #define NoFramesPerPacket 20                 // number of frames/packet, must be an even number
 
 
-// pin defintions
+// pin defintions - edited to reflect PCB layout - Dan
 #define SCK_PIN  13
 #define MOSI_PIN 14
 #define MISO_PIN 12
