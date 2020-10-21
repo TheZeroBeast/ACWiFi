@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <FS.h>
 #include <Wire.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,6 +11,7 @@
 #include <ArduinoJson.h>
 #include <WebSerial.h>
 #include "html.h"
+#include <EEPROM.h>
 
 MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 
@@ -34,8 +34,6 @@ AsyncWebServer server(80);
 OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress insideThermometer;     // arrays to hold device address
-
-void(* resetFunc) (void) = 0; // declare reset function at address 0, call resetFunc() to reset the system.
 
 void recvMsg(uint8_t *data, size_t len)
 {
@@ -99,90 +97,75 @@ String processor(const String& var)
 
 void UpdateWiFiCreds(String ssid, String pass)
 {
-  SPIFFS.remove(filename); // delete old credentials
-  File f = SPIFFS.open(filename, "w"); // store new credentials
-  f.println(ssid);
-  f.println(pass);
-  f.close();
+  // Erase EEPROM locations
+  for(int e = 0; e < 96; e++)
+    {
+      EEPROM.write(e,0);
+    }
+  EEPROM.commit();
+  
+  // Write ssid
+  for(int a = 0; a < 32; a++) // 32 char read from memory into ssid string
+    {
+      EEPROM.write(a, ssid[a]);
+      Serial.println("Writing :" + ssid[a]);
+    }
+  
+  // Write passphrase
+  for(int b = 32; b < 96; b++) // 64 char read from memory into passphrase string
+    {
+      EEPROM.write(b, pass[b-32]);
+      Serial.println(pass[b-32]);
+    }
+  EEPROM.end(); 
 }
 
 void setup()
 {
+  EEPROM.begin(96); // 32 bytes for SSID and 64 bytes for PASSPHRASE
   pinMode(LED_BUILTIN, OUTPUT); 
   boolean apmode = false;
-  String credentials, ssid, passphrase;
+  String ssid, passphrase;
   char * pch;
   String apssid = "ACWiFi " + String(ESP.getChipId());
   // Serial port for debugging purposes
   WiFi.mode(WIFI_OFF); // set initial wifi mode
   Serial.begin(115200);
-  Serial.println(" ");
   Serial.println("********************************");
   Serial.println("*     AC WiFi Adaptor v1.0     *");
   Serial.println("*           start-up           *");
   Serial.println("********************************");
-  // Initialize SPIFFS
-  Serial.println("Mounting SPIFFS.");
-  if(!SPIFFS.begin())
+  Serial.println(" ");
+  // Load stored variables for ssid and passphrase
+  Serial.println("Loading stored WiFi credentials from memory.");
+  char ssidchar;
+  for(int a = 0; a < 32; a++) // 32 char read from memory into ssid string
+    {
+      ssid += char(EEPROM.read(a));
+    }
+  char passphrasechar;
+  for(int b = 32; b < 96; b++) // 64 char read from memory into passphrase string
+    {
+      passphrase += char(EEPROM.read(b));
+    }  
+  Serial.println("SSID: " + ssid);
+  Serial.println("PASSPHRASE: " + passphrase);    
+  Serial.println("STATION Mode Starting.");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, passphrase);
+  for(int i = 0; i < 30; i++) // 30 second timeout
   {
-    Serial.println("An Error has occurred while mounting SPIFFS.");
-    Serial.println("Unable to continue booting.");
-    return;
+    if (WiFi.status() == WL_CONNECTED) break;
+    Serial.println(String(i)+"s....");
+    delay(1000);      
   }
-  else
+  if (WiFi.status() != WL_CONNECTED) 
   {
-    Serial.println("SPIFFS mounted successfully.");
-    // Retrieve stored station SSID and passphrase from SPIFFS
-    File f = SPIFFS.open(filename, "r");
-    if(!f)
-    {
-      apmode = true;
-      Serial.println("Failed to open credentials.txt from SPIFFS.");
-    }
-    else
-    {
-      Serial.println("Reading credentials.txt from SPIFFS.");
-      for(int i = 0; i < f.size(); i++)
-      {
-        credentials += (char)f.read();
-      }
-      f.close();
-      // Parse ssid and passphrase from credentials string
-      int a = credentials.indexOf('\n');
-      ssid = credentials.substring(0, a-1);
-      passphrase = credentials.substring(a+1, credentials.length());
-      Serial.println("STATION WiFi credentials loaded from SPIFFS.");
-      Serial.println("SSID: " + ssid);
-      Serial.println("PASSPHRASE: " + passphrase);
-    }
-  }  
-  // Try Station WiFi stored credentials, and if they fail to connect after 30 seconds, start up in access point mode
-  if(apmode)
-  {
-    Serial.println("AP Mode Starting, no STATION credentials found.");
+    WiFi.disconnect(true); // disconnect from access point and turn off STATION mode.
+    Serial.println("AP Mode Starting, failed to connect to STATION.");
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(local_IP, gateway, subnet);
-    WiFi.softAP(apssid); // start open access point
-  }
-  else
-  {
-    WiFi.mode(WIFI_STA);
-    Serial.println("STATION Mode Starting.");
-    WiFi.begin(ssid, passphrase);
-    for(int i = 0; i < 30; i++) // 30 second timeout
-    {
-      if (WiFi.status() == WL_CONNECTED) break;
-      Serial.println(String(i)+"s....");
-      delay(1000);      
-    }
-    if (WiFi.status() != WL_CONNECTED) 
-    {
-      WiFi.disconnect(true); // disconnect from access point and turn off STATION mode.
-      Serial.println("AP Mode Starting, failed to connect to STATION.");
-      WiFi.mode(WIFI_AP);
-      WiFi.softAPConfig(local_IP, gateway, subnet);
-      WiFi.softAP(apssid); // enable AP mode
-    }
+    WiFi.softAP(apssid); // enable AP mode
   }
   Serial.println("Initializing OTA support.");
   ArduinoOTA.setPassword("esp8266");
@@ -265,8 +248,7 @@ void setup()
       Serial.println("*******************************");
       Serial.println("Restarting system in 5 seconds!");
       Serial.println("*******************************");
-      delay(5000);
-      resetFunc();
+      ESP.restart();
     }
     else
       request->send_P(200, "text/plain", "Nothing to update");
