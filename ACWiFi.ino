@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <Wire.h>
 #include <stdio.h>
 #include <string.h>
 #include "MHI-AC-Ctrl-core.h"
@@ -20,6 +19,7 @@ const char* filename = "/credentials.txt";
 
 boolean firstrun = true;
 float temptrim = 6.2;
+int espledflashcounter = 0;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -246,7 +246,7 @@ void setup()
       Serial.println("New SSID: " + newssid);
       Serial.println("New PASS: " + newpass);
       Serial.println("*******************************");
-      Serial.println("Restarting system in 5 seconds!");
+      Serial.println("    Restarting system NOW!     ");
       Serial.println("*******************************");
       ESP.restart();
     }
@@ -269,9 +269,14 @@ void setup()
  
 void loop()
 {
-  ArduinoOTA.handle();
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(250);
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(250);
+  ArduinoOTA.handle();  
+  int ret = mhi_ac_ctrl_core.loop(100);
+  if (ret < 0)
+    Serial.println("mhi_ac_ctrl_core.loop error code: " + String(ret));  
+  if (espledflashcounter == 10)
+  {
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    espledflashcounter = 0;
+  }
+  espledflashcounter++;
 }
