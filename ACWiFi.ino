@@ -3,7 +3,6 @@
 #include <ESPAsyncWebServer.h>
 #include <stdio.h>
 #include <string.h>
-#include "MHI-AC-Ctrl-core.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
@@ -11,11 +10,7 @@
 #include <WebSerial.h>
 #include "html.h"
 #include <EEPROM.h>
-
-MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
-
-// Stored network credentials
-const char* filename = "/credentials.txt";
+#include <SPISlave.h>
 
 boolean firstrun = true;
 float temptrim = 6.2;
@@ -122,6 +117,8 @@ void UpdateWiFiCreds(String ssid, String pass)
 
 void setup()
 {
+  pinMode(16, OUTPUT); // turn on level shifter
+  digitalWrite(16, 1); // turn on level shifter
   EEPROM.begin(96); // 32 bytes for SSID and 64 bytes for PASSPHRASE
   pinMode(LED_BUILTIN, OUTPUT); 
   boolean apmode = false;
@@ -254,10 +251,13 @@ void setup()
       request->send_P(200, "text/plain", "Nothing to update");
   });
     
-  Serial.println("Initializing MHI SPI.");
-  pinMode(16, OUTPUT); // turn on level shifter
-  digitalWrite(16, 1); // turn on level shifter
-  mhi_ac_ctrl_core.init();
+  Serial.println("Initializing SPI.");  
+  SPISlave.onData([](uint8_t * data, size_t len) {
+    String message = String((char *)data);
+    (void) len;
+    Serial.println(message);
+  });
+  SPISlave.begin();
 
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
@@ -271,10 +271,7 @@ void setup()
  
 void loop()
 {
-  ArduinoOTA.handle();  
-  int ret = mhi_ac_ctrl_core.loop(100);
-  if (ret < 0)
-    Serial.println("mhi_ac_ctrl_core.loop error code: " + String(ret));  
+  ArduinoOTA.handle();
   if (espledflashcounter == 10)
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
