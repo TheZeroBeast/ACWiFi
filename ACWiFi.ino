@@ -301,8 +301,6 @@ void setup()
     }
   });
   
-  attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
-  
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
   WebSerial.begin(&server);
@@ -311,6 +309,8 @@ void setup()
   // Start web server
   Serial.println("Starting web server.");
   server.begin();  
+
+  attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
 }
  
 void loop()
