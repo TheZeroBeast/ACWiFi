@@ -15,7 +15,7 @@
 boolean firstrun = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
-int triggerdelay = 5;
+int triggerdelay = 3;
 boolean SPIBegin = false;
 boolean firstRun = true;
 boolean firstLoop = true;
@@ -28,7 +28,7 @@ IPAddress subnet(255,255,255,0);
 #define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
 #define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
 
-#define SCKPin = 14
+#define SCKPin 14
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -50,15 +50,10 @@ void recvMsg(uint8_t *data, size_t len)
 
 ICACHE_RAM_ATTR void ClockInterrupt()
 {
-  if (firstLoop)
-  {
-    firstLoop = false;
-    lastSPITimestamp = millis();
-  }
-  else
-  {
-    if ((millis() - lastSPITimestamp) > triggerdelay) SPIBegin = true;
-  }
+  if (firstLoop) firstLoop = false;
+  else if ((millis() - lastSPITimestamp) > triggerdelay) SPIBegin = true;
+  lastSPITimestamp = millis();
+
 }
 
 void setup_ds18x20() 
