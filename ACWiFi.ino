@@ -24,6 +24,7 @@ unsigned long lastSPITimestamp;
 uint8_t signatureBytes[3];
 uint8_t dataBytes[15];
 uint8_t checksumBytes[2];
+uint8_t tempSPIBuffer[32];
 boolean payloadprocessing = false;
 
 IPAddress local_IP(192,168,1,1);
@@ -275,6 +276,9 @@ void setup()
     if (!payloadprocessing)
     {
       (void) len;
+      tempSPIBuffer = *data;
+      payloadprocessing = true;
+      /*
       String message;
       if (firstRun)
       {
@@ -297,7 +301,7 @@ void setup()
           }
           //message += prefix + String(((char *)data)[i],HEX);
         }
-      }
+      }*/
     }
   });
   
@@ -332,10 +336,15 @@ void loop()
   
   if (payloadprocessing)
   {
+    string message = "Data: 0x" + String(tempSPIBuffer[0], HEX);
+    for (uint8_t i = 1; i < 32; i++) message += ", 0x" + String(tempSPIBuffer[i], HEX);
+    Serial.println(message);
+    /*
     Serial.println("Signature: 0x" + String(signatureBytes[0], HEX) + ", 0x" + String(signatureBytes[1], HEX) + ", 0x" + String(signatureBytes[2], HEX));
     String message = "Data: 0x" + String(dataBytes[0], HEX);
     for (uint8_t i = 1; i < 15; i++) message += ", 0x" + String(dataBytes[i], HEX);
     Serial.println(message);
+    */
     payloadprocessing = false;
   }
 }
