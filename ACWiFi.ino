@@ -21,9 +21,10 @@ boolean firstRun = true;
 boolean firstLoop = true;
 unsigned long lastSPITimestamp;
 
-uint8_t startbytes;
+uint8_t signatureBytes[3];
+uint8_t dateBytes[15];
+uint8_t checksumBytes[2];
 boolean payloadprocessing = false;
-char payload[20];
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -57,7 +58,6 @@ ICACHE_RAM_ATTR void ClockInterrupt()
   if (firstLoop) firstLoop = false;
   else if ((millis() - lastSPITimestamp) > triggerdelay) SPIBegin = true;
   lastSPITimestamp = millis();
-
 }
 
 void setup_ds18x20() 
@@ -272,20 +272,31 @@ void setup()
     
   Serial.println("Initializing SPI.");  
   SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    String message;
-    boolean first = true;
-    String prefix = "0x";
-    for (int i = 0; i < len; i++)
+    if (!payloadprocessing)
     {
-      message += prefix + String(((char *)data)[i],HEX);
-      if (first)
+      payloadprocessing = true;
+      (void) len;
+      String message;
+      if (firstRun)
       {
-        first = false;
-        prefix = ", 0x";
+        firstRun = false;
+        for (uint8_t i = 0; i < 3; i++) signatureBytes[i] = (char *)data[i];
+      }
+      else
+      {
+        for (uint8_t i = 0; i < len; i++)
+        { // If Signature is seen in 32 Byte SPI Buffer than load data and flag payloadProcessing
+          if ((char *)data[i]   == signatureBytes[0] &&
+              (char *)data[i+1] == signatureBytes[1] &&
+              (char *)data[i+2] == signatureBytes[2])
+          {
+            for (uint8_t x = i+3; x < i+18; x++) dataBytes[x] = (char*)data[x];
+            break;
+          }
+          //message += prefix + String(((char *)data)[i],HEX);
+        }
       }
     }
-    Serial.println(message);
   });
   
   attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
@@ -312,8 +323,17 @@ void loop()
   
   if (SPIBegin && firstRun)
   {
-    firstRun = false;
+    SPIBegin = false;
     detachInterrupt(digitalPinToInterrupt(SCKPin));
     SPISlave.begin();
+  }
+  
+  if (payloadProcessing)
+  {
+    Serial.println("Signature: 0x" + String(signatureBytes[0], HEX) + ", 0x" + String(signatureBytes[1], HEX) + ", 0x" + String(signatureBytes[2], HEX));
+    String message = "Data: 0x" + String(dataBytes[0], HEX);
+    for (uint8_t i = 1; i < 15; i++) message += ", 0x" + String(dataBytes[i], HEX);
+    Serial.println(message);
+    payloadProcessing = false;
   }
 }
