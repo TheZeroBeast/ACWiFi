@@ -15,6 +15,11 @@
 boolean firstrun = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
+int triggerdelay = 5;
+boolean SPIBegin = false;
+boolean firstRun = true;
+boolean firstLoop = true;
+unsigned long lastSPITimestamp;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -22,6 +27,8 @@ IPAddress subnet(255,255,255,0);
 
 #define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
 #define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
+
+#define SCKPin = 14
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -39,6 +46,19 @@ void recvMsg(uint8_t *data, size_t len)
     d += char(data[i]);
   }
   WebSerial.println(d);
+}
+
+ICACHE_RAM_ATTR void ClockInterrupt()
+{
+  if (firstLoop)
+  {
+    firstLoop = false;
+    lastSPITimestamp = millis();
+  }
+  else
+  {
+    if ((millis() - lastSPITimestamp) > triggerdelay) SPIBegin = true;
+  }
 }
 
 void setup_ds18x20() 
@@ -253,10 +273,7 @@ void setup()
     
   Serial.println("Initializing SPI.");  
   SPISlave.onData([](uint8_t * data, size_t len) {
-    int payload = int((char *)data);
     (void) len;
-    //String message = "0x" + String(payload & 0xFF,HEX) + ", 0x" + String((payload >> 8) & 0xFF,HEX) + ", 0x" + String((payload >> 16) & 0xFF, HEX);
-    //String message = "0b" + String(payload, BIN);
     String message;
     boolean first = true;
     String prefix = "0x";
@@ -271,8 +288,9 @@ void setup()
     }
     Serial.println(message);
   });
-  SPISlave.begin();
-
+  
+  attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
+  
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
   WebSerial.begin(&server);
@@ -292,4 +310,11 @@ void loop()
     espledflashcounter = 0;
   }
   espledflashcounter++;
+  
+  if (SPIBegin && firstRun)
+  {
+    firstRun = false;
+    detachInterrupt(digitalPinToInterrupt(SCKPin));
+    SPISlave.begin();
+  }
 }
