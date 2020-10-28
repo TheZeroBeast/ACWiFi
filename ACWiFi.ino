@@ -253,8 +253,22 @@ void setup()
     
   Serial.println("Initializing SPI.");  
   SPISlave.onData([](uint8_t * data, size_t len) {
-    String message = String((char *)data);
+    int payload = int((char *)data);
     (void) len;
+    //String message = "0x" + String(payload & 0xFF,HEX) + ", 0x" + String((payload >> 8) & 0xFF,HEX) + ", 0x" + String((payload >> 16) & 0xFF, HEX);
+    //String message = "0b" + String(payload, BIN);
+    String message;
+    boolean first = true;
+    String prefix = "0x";
+    for (int i = 0; i < len; i++)
+    {
+      message += prefix + String(((char *)data)[i],HEX);
+      if (first)
+      {
+        first = false;
+        prefix = ", 0x";
+      }
+    }
     Serial.println(message);
   });
   SPISlave.begin();
