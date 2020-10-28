@@ -15,14 +15,14 @@
 boolean firstrun = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
-int triggerdelay = 10;
+int triggerdelay = 2;
 boolean SPIBegin = false;
 boolean firstRun = true;
 boolean firstLoop = true;
 unsigned long lastSPITimestamp;
 
 uint8_t signatureBytes[3];
-uint8_t dateBytes[15];
+uint8_t dataBytes[15];
 uint8_t checksumBytes[2];
 boolean payloadprocessing = false;
 
@@ -274,23 +274,25 @@ void setup()
   SPISlave.onData([](uint8_t * data, size_t len) {
     if (!payloadprocessing)
     {
-      payloadprocessing = true;
       (void) len;
       String message;
       if (firstRun)
       {
+        Serial.println(millis() - lastSPITimestamp);
         firstRun = false;
-        for (uint8_t i = 0; i < 3; i++) signatureBytes[i] = (char *)data[i];
+        for (uint8_t i = 0; i < 3; i++) signatureBytes[i] = (*(data+i));
+        payloadprocessing = true;
       }
       else
       {
         for (uint8_t i = 0; i < len; i++)
         { // If Signature is seen in 32 Byte SPI Buffer than load data and flag payloadProcessing
-          if ((char *)data[i]   == signatureBytes[0] &&
-              (char *)data[i+1] == signatureBytes[1] &&
-              (char *)data[i+2] == signatureBytes[2])
+          if ((*(data+i))   == signatureBytes[0] &&
+              (*(data+i+1)) == signatureBytes[1] &&
+              (*(data+i+2)) == signatureBytes[2])
           {
-            for (uint8_t x = i+3; x < i+18; x++) dataBytes[x] = (char*)data[x];
+            for (uint8_t x = i+3; x < i+18; x++) dataBytes[x] = (*(data+x));
+            payloadprocessing = true;
             break;
           }
           //message += prefix + String(((char *)data)[i],HEX);
@@ -328,12 +330,12 @@ void loop()
     SPISlave.begin();
   }
   
-  if (payloadProcessing)
+  if (payloadprocessing)
   {
     Serial.println("Signature: 0x" + String(signatureBytes[0], HEX) + ", 0x" + String(signatureBytes[1], HEX) + ", 0x" + String(signatureBytes[2], HEX));
     String message = "Data: 0x" + String(dataBytes[0], HEX);
     for (uint8_t i = 1; i < 15; i++) message += ", 0x" + String(dataBytes[i], HEX);
     Serial.println(message);
-    payloadProcessing = false;
+    payloadprocessing = false;
   }
 }
