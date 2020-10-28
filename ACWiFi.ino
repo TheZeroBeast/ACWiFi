@@ -272,7 +272,8 @@ void setup()
   });
 
   SPISlave.onData([](uint8_t * data, size_t len) {
-    Serial.printf("Question: %s\n", (char *)data);
+    (void) len;
+    for (int i = 0; i < len; i++) Serial.println("DATA: " i + "." + String((char *)data[i], HEX));
     /*
     if (!payloadprocessing)
     {
@@ -299,8 +300,8 @@ void setup()
           }
           //message += prefix + String(((char *)data)[i],HEX);
         }
-      }*/
-    }
+      }
+    }*/
   });
   Serial.println("Initializing SPI.");
   SPISlave.begin();
@@ -326,22 +327,4 @@ void loop()
     espledflashcounter = 0;
   }
   espledflashcounter++;
-  
-  if (SPIBegin && firstRun)
-  {
-    SPIBegin = false;
-    detachInterrupt(digitalPinToInterrupt(SCKPin));
-    SPISlave.begin();
-  }
-  
-  if (payloadprocessing)
-  {
-    /*
-    Serial.println("Signature: 0x" + String(signatureBytes[0], HEX) + ", 0x" + String(signatureBytes[1], HEX) + ", 0x" + String(signatureBytes[2], HEX));
-    String message = "Data: 0x" + String(dataBytes[0], HEX);
-    for (uint8_t i = 1; i < 15; i++) message += ", 0x" + String(dataBytes[i], HEX);
-    Serial.println(message);
-    */
-    payloadprocessing = false;
-  }
 }
