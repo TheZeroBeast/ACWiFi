@@ -31,8 +31,8 @@ const byte opdata[][2] PROGMEM = {
 
 
 // pin defintions - edited to reflect PCB layout - Dan
-#define SCK_PIN  13
-#define MOSI_PIN 14
+#define SCK_PIN  14
+#define MOSI_PIN 13
 #define MISO_PIN 12
 
 // constants for the frame

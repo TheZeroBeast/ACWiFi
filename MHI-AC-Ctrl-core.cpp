@@ -99,7 +99,7 @@ void MeasureFrequency(CallbackInterface_Status *m_cbiStatus) {  // measure the f
 }
 
 void MHI_AC_Ctrl_Core::init() {
-  //MeasureFrequency(m_cbiStatus);
+  MeasureFrequency(m_cbiStatus);
   pinMode(SCK_PIN, INPUT);
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);

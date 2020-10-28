@@ -255,6 +255,8 @@ void setup()
   });
     
   Serial.println("Initializing MHI SPI.");
+  pinMode(16, OUTPUT); // turn on level shifter
+  digitalWrite(16, 1); // turn on level shifter
   mhi_ac_ctrl_core.init();
 
   Serial.println("Starting webserial.");
