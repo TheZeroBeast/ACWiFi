@@ -15,11 +15,15 @@
 boolean firstrun = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
-int triggerdelay = 3;
+int triggerdelay = 10;
 boolean SPIBegin = false;
 boolean firstRun = true;
 boolean firstLoop = true;
 unsigned long lastSPITimestamp;
+
+uint8_t startbytes;
+boolean payloadprocessing = false;
+char payload[20];
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
