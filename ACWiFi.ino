@@ -270,16 +270,14 @@ void setup()
     else
       request->send_P(200, "text/plain", "Nothing to update");
   });
-    
-  Serial.println("Initializing SPI.");  
+
   SPISlave.onData([](uint8_t * data, size_t len) {
+    Serial.printf("Question: %s\n", (char *)data);
+    /*
     if (!payloadprocessing)
     {
-      (void) len;
-      tempSPIBuffer = *data;
-      payloadprocessing = true;
-      /*
       String message;
+      (void) len;
       if (firstRun)
       {
         Serial.println(millis() - lastSPITimestamp);
@@ -304,6 +302,8 @@ void setup()
       }*/
     }
   });
+  Serial.println("Initializing SPI.");
+  SPISlave.begin();
   
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
@@ -314,7 +314,7 @@ void setup()
   Serial.println("Starting web server.");
   server.begin();  
 
-  attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
+  //attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
 }
  
 void loop()
@@ -336,9 +336,6 @@ void loop()
   
   if (payloadprocessing)
   {
-    string message = "Data: 0x" + String(tempSPIBuffer[0], HEX);
-    for (uint8_t i = 1; i < 32; i++) message += ", 0x" + String(tempSPIBuffer[i], HEX);
-    Serial.println(message);
     /*
     Serial.println("Signature: 0x" + String(signatureBytes[0], HEX) + ", 0x" + String(signatureBytes[1], HEX) + ", 0x" + String(signatureBytes[2], HEX));
     String message = "Data: 0x" + String(dataBytes[0], HEX);
