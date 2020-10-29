@@ -12,8 +12,6 @@
 #include <EEPROM.h>
 #include <SPISlave.h>
 
-unsigned long savedmillis;
-boolean spiinit = false;
 boolean firstruntemp = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
@@ -275,20 +273,12 @@ void setup()
     inputBuffer = data;
     spidatareceived = true;
     });  
-  pinMode(12, OUTPUT);
-  digitalWrite(12, LOW);
-  savedmillis = millis();
+  SPISlave.begin();
   
 }
 
 void loop()
 {
-  if (millis() - savedmillis > 1000 && !spiinit)
-  {
-    spiinit = true;
-    digitalWrite(12,HIGH);
-    SPISlave.begin();
-  }
   ArduinoOTA.handle();
   if (espledflashcounter == 10)
   {
