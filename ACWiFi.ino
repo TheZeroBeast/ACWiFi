@@ -274,11 +274,11 @@ void setup()
     spidatareceived = true;
     });  
   SPISlave.begin();
-  
+  savedInts = noInterrupts();  //disable interrupts
 }
 
 void loop()
-{
+{  
   ArduinoOTA.handle();
   if (espledflashcounter == 10)
   {
@@ -298,6 +298,13 @@ void loop()
       rawpacketcounter = 0;
     }
     spidatareceived = false;
-    xt_wsr_ps(savedInts); // enable interrupts
+    xt_wsr_ps(savedInts); // enable interrupts    
   }
+  int startMillis = millis();
+  int SCKMillis = millis();
+  while (millis() - SCKMillis < 5)
+  {
+    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
+  }
+  xt_wsr_ps(savedInts); // enable interrupts
 }
