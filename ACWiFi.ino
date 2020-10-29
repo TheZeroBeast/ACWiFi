@@ -12,20 +12,11 @@
 #include <EEPROM.h>
 #include <SPISlave.h>
 
-boolean firstrun = true;
+boolean firstruntemp = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
-int triggerdelay = 2;
-boolean SPIBegin = false;
-boolean firstRun = true;
-boolean firstLoop = true;
-unsigned long lastSPITimestamp;
-
-uint8_t signatureBytes[3];
-uint8_t dataBytes[15];
-uint8_t checksumBytes[2];
-String tempSPIBuffer[32];
-boolean payloadprocessing = false;
+String message;
+boolean spidatareceived = false;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -33,8 +24,7 @@ IPAddress subnet(255,255,255,0);
 
 #define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
 #define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
-
-#define SCKPin 14
+#define SCK_PIN 14
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -54,13 +44,6 @@ void recvMsg(uint8_t *data, size_t len)
   WebSerial.println(d);
 }
 
-ICACHE_RAM_ATTR void ClockInterrupt()
-{
-  if (firstLoop) firstLoop = false;
-  else if ((millis() - lastSPITimestamp) > triggerdelay) SPIBegin = true;
-  lastSPITimestamp = millis();
-}
-
 void setup_ds18x20() 
 {
   sensors.begin();
@@ -78,12 +61,12 @@ String getDs18x20Temperature()
 {
   String temperature;
   static unsigned long DS1820Millis = millis();  
-  if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstrun)) 
+  if ((millis() - DS1820Millis > TEMP_MEASURE_PERIOD * 1000)||(firstruntemp)) 
   {
     temperature = String(float(sensors.getTempC(insideThermometer)) - temptrim);
     DS1820Millis = millis();
     sensors.requestTemperatures();
-    firstrun = false;
+    firstruntemp = false;
   }
   return temperature;
 }
@@ -271,45 +254,6 @@ void setup()
       request->send_P(200, "text/plain", "Nothing to update");
   });
 
-  SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    if (!payloadprocessing)
-    {
-      payloadprocessing = true;
-      for (int i = 0; i < 32; i++) tempSPIBuffer[i] = "0x" + String(((char *)data)[i], HEX);
-    }
-    /*
-    if (!payloadprocessing)
-    {
-      String message;
-      (void) len;
-      if (firstRun)
-      {
-        Serial.println(millis() - lastSPITimestamp);
-        firstRun = false;
-        for (uint8_t i = 0; i < 3; i++) signatureBytes[i] = (*(data+i));
-        payloadprocessing = true;
-      }
-      else
-      {
-        for (uint8_t i = 0; i < len; i++)
-        { // If Signature is seen in 32 Byte SPI Buffer than load data and flag payloadProcessing
-          if ((*(data+i))   == signatureBytes[0] &&
-              (*(data+i+1)) == signatureBytes[1] &&
-              (*(data+i+2)) == signatureBytes[2])
-          {
-            for (uint8_t x = i+3; x < i+18; x++) dataBytes[x] = (*(data+x));
-            payloadprocessing = true;
-            break;
-          }
-          //message += prefix + String(((char *)data)[i],HEX);
-        }
-      }
-    }*/
-  });
-  Serial.println("Initializing SPI.");
-  SPISlave.begin();
-  
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
   WebSerial.begin(&server);
@@ -319,9 +263,15 @@ void setup()
   Serial.println("Starting web server.");
   server.begin();  
 
-  //attachInterrupt(digitalPinToInterrupt(SCKPin), ClockInterrupt, RISING);
+  Serial.println("Initializing SPI.");
+  SPISlave.onData([](uint8_t * data, size_t len) {
+    (void) len;
+    SPI1S &= ~(0x3E0);  //disable interrupts
+    for (int i = 0; i < len; i++) message += String(((char *)data)[i], HEX);
+    spidatareceived = true;
+    });
 }
- 
+
 void loop()
 {
   ArduinoOTA.handle();
@@ -332,11 +282,12 @@ void loop()
   }
   espledflashcounter++;
   
-  if (payloadprocessing)
+  if (spidatareceived)
   {
-    String message = tempSPIBuffer[0];
-    for (int i =1; i < 32; i++) {message += ", " + tempSPIBuffer[i]; tempSPIBuffer[i] = "";}
     Serial.println(message);
-    payloadprocessing = false;
+    spidatareceived = false;
+    SPI1S |= SPISSRES;  //reset
+    SPI1S &= ~(0x1F);   //clear interrupts
+    SPI1S |= (0x3E0);   //enable interrupts
   }
 }
