@@ -272,12 +272,11 @@ void setup()
   });
 
   SPISlave.onData([](uint8_t * data, size_t len) {
+    (void) len;
     if (!payloadprocessing)
     {
-      (void) len;
-      tempSPIBuffer[0] = "0x" + String(((char *)data)[i], HEX);
-      for (int i = 1; i < len; i++) tempSPIBuffer[i] = "0x" + String(((char *)data)[i], HEX);
       payloadprocessing = true;
+      for (int i = 0; i < 32; i++) tempSPIBuffer[i] = "0x" + String(((char *)data)[i], HEX);
     }
     /*
     if (!payloadprocessing)
@@ -336,7 +335,7 @@ void loop()
   if (payloadprocessing)
   {
     String message = tempSPIBuffer[0];
-    for (int i =1; i < 32; i++) message += ", " + tempSPIBuffer[i];
+    for (int i =1; i < 32; i++) {message += ", " + tempSPIBuffer[i]; tempSPIBuffer[i] = "";}
     Serial.println(message);
     payloadprocessing = false;
   }
