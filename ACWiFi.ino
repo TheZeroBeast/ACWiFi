@@ -273,6 +273,7 @@ void setup()
     inputBuffer = data;
     spidatareceived = true;
     });  
+  SPISlave.begin();
 }
 
 void loop()
