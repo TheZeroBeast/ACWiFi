@@ -270,6 +270,7 @@ void setup()
     for (int i = 0; i < len; i++) message += String(((char *)data)[i], HEX);
     spidatareceived = true;
     });
+  SPISlave.begin();
 }
 
 void loop()
