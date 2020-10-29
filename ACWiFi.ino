@@ -24,7 +24,7 @@ unsigned long lastSPITimestamp;
 uint8_t signatureBytes[3];
 uint8_t dataBytes[15];
 uint8_t checksumBytes[2];
-uint8_t tempSPIBuffer[32];
+String tempSPIBuffer[32];
 boolean payloadprocessing = false;
 
 IPAddress local_IP(192,168,1,1);
@@ -272,11 +272,13 @@ void setup()
   });
 
   SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    String message = "0x" + String(((char *)data)[0], HEX);
-    for (int i = 1; i < len; i++) message += ",0x" + String(((char *)data)[i], HEX);
-    
-    Serial.println("DATA: " + message);
+    if (!payloadprocessing)
+    {
+      (void) len;
+      tempSPIBuffer[0] = "0x" + String(((char *)data)[i], HEX);
+      for (int i = 1; i < len; i++) tempSPIBuffer[i] = "0x" + String(((char *)data)[i], HEX);
+      payloadprocessing = true;
+    }
     /*
     if (!payloadprocessing)
     {
@@ -330,4 +332,12 @@ void loop()
     espledflashcounter = 0;
   }
   espledflashcounter++;
+  
+  if (payloadprocessing)
+  {
+    String message = tempSPIBuffer[0];
+    for (int i =1; i < 32; i++) message += ", " + tempSPIBuffer[i];
+    Serial.println(message);
+    payloadprocessing = false;
+  }
 }
