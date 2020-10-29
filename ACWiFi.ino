@@ -12,6 +12,7 @@
 #include <EEPROM.h>
 #include <SPISlave.h>
 
+boolean runonce = true;
 boolean firstruntemp = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
@@ -268,23 +269,27 @@ void setup()
   server.begin();  
 
   Serial.println("Initializing SPI.");
-  int startMillis = millis();
-  int SCKMillis = millis();
-  while (millis() - SCKMillis < 5)
-  {
-    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
-  }
-  SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    savedInts = noInterrupts();  //disable interrupts
-    inputBuffer = data;
-    spidatareceived = true;
-    });  
+  //int startMillis = millis();
+  //int SCKMillis = millis();
+  //while (millis() - SCKMillis < 5)
+  //{
+  //  if (!digitalRead(SCK_PIN)) SCKMillis = millis();
+  //}    
   SPISlave.begin();  
 }
 
 void loop()
-{  
+{ 
+  if (!SPIBUSY && runonce && SPIRDY)
+  {
+    SPISlave.onData([](uint8_t * data, size_t len) {
+    (void) len;
+    savedInts = noInterrupts();  //disable interrupts
+    inputBuffer = data;
+    spidatareceived = true;
+    });
+    runonce = false;
+  }
   ArduinoOTA.handle();
   //if (espledflashcounter == 10)
   //{
