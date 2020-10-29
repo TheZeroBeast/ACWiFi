@@ -268,7 +268,6 @@ void setup()
   server.begin();  
 
   Serial.println("Initializing SPI.");
-  SPISlave.begin(); 
   int startMillis = millis();
   int SCKMillis = millis();
   while (millis() - SCKMillis < 5)
@@ -281,7 +280,7 @@ void setup()
     inputBuffer = data;
     spidatareceived = true;
     });  
-  //SPISlave.begin();  
+  SPISlave.begin();  
 }
 
 void loop()
