@@ -286,6 +286,7 @@ void loop()
   if (spidatareceived)
   {
     Serial.println(message);
+    message = "";     
     spidatareceived = false;
     SPI1S |= SPISSRES;  //reset
     SPI1S &= ~(0x1F);   //clear interrupts
