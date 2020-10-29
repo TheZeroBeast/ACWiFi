@@ -18,7 +18,8 @@ int espledflashcounter = 0;
 boolean spidatareceived = false;
 uint32_t savedInts;
 uint8_t* inputBuffer;
-
+String tworawpackets;
+int rawpacketcounter = 0;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -284,11 +285,16 @@ void loop()
   }
   espledflashcounter++;
 
-  String message;
   if (spidatareceived)
   {
-    for (int i = 0; i < 32; i++) message += String(((char *)inputBuffer)[i], HEX);
-    Serial.println(message);
+    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBuffer)[i], HEX);
+    rawpacketcounter++;
+    if (rawpacketcounter == 2)
+    {
+      Serial.println(tworawpackets);
+      tworawpackets = "";
+      rawpacketcounter = 0;
+    }
     spidatareceived = false;
     xt_wsr_ps(savedInts); // enable interrupts
   }
