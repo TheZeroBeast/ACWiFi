@@ -17,6 +17,7 @@ float temptrim = 6.2;
 int espledflashcounter = 0;
 String message;
 boolean spidatareceived = false;
+uint32_t savedInts;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -266,7 +267,7 @@ void setup()
   Serial.println("Initializing SPI.");
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
-    SPI1S &= ~(0x3E0);  //disable interrupts
+    savedInts = noInterrupts();  //disable interrupts
     for (int i = 0; i < len; i++) message += String(((char *)data)[i], HEX);
     spidatareceived = true;
     });
@@ -288,8 +289,6 @@ void loop()
     Serial.println(message);
     message = "";     
     spidatareceived = false;
-    SPI1S |= SPISSRES;  //reset
-    SPI1S &= ~(0x1F);   //clear interrupts
-    SPI1S |= (0x3E0);   //enable interrupts
+    xt_wsr_ps(savedInts); // enable interrupts
   }
 }
