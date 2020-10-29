@@ -267,6 +267,12 @@ void setup()
   server.begin();  
 
   Serial.println("Initializing SPI.");
+  int startMillis = millis();
+  int SCKMillis = millis();
+  while (millis() - SCKMillis < 5)
+  {
+    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
+  }
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
     savedInts = noInterrupts();  //disable interrupts
@@ -297,12 +303,5 @@ void loop()
     }
     spidatareceived = false;
     xt_wsr_ps(savedInts); // enable interrupts    
-  }
-  int startMillis = millis();
-  int SCKMillis = millis();
-  while (millis() - SCKMillis < 5)
-  {
-    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
-  }
-  
+  }  
 }
