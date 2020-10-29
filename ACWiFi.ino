@@ -273,8 +273,7 @@ void setup()
     inputBuffer = data;
     spidatareceived = true;
     });  
-  SPISlave.begin();
-  savedInts = noInterrupts();  //disable interrupts
+  SPISlave.begin();  
 }
 
 void loop()
@@ -299,6 +298,8 @@ void loop()
     spidatareceived = false;
     xt_wsr_ps(savedInts); // enable interrupts    
   }
+  
+  savedInts = noInterrupts();  //disable interrupts
   int startMillis = millis();
   int SCKMillis = millis();
   while (millis() - SCKMillis < 5)
