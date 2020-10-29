@@ -127,6 +127,7 @@ void setup()
   digitalWrite(16, 1); // turn on level shifter
   EEPROM.begin(96); // 32 bytes for SSID and 64 bytes for PASSPHRASE
   pinMode(LED_BUILTIN, OUTPUT); 
+  pinMode(SCK_PIN, INPUT);
   boolean apmode = false;
   String ssid, passphrase;
   char * pch;
