@@ -280,13 +280,12 @@ void setup()
 void loop()
 {  
   ArduinoOTA.handle();
-  if (espledflashcounter == 10)
-  {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    espledflashcounter = 0;
-  }
-  espledflashcounter++;
-
+  //if (espledflashcounter == 10)
+  //{
+  //  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  //  espledflashcounter = 0;
+  //}
+  //espledflashcounter++;
   if (spidatareceived)
   {
     for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBuffer)[i], HEX);
