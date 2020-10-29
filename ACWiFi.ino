@@ -13,8 +13,6 @@
 #include <SPISlave.h>
 
 boolean firstruntemp = true;
-boolean firstrunsck = true;
-unsigned long scktime;
 float temptrim = 6.2;
 int espledflashcounter = 0;
 boolean spidatareceived = false;
@@ -122,25 +120,10 @@ void UpdateWiFiCreds(String ssid, String pass)
   EEPROM.end(); 
 }
 
-void ICACHE_RAM_ATTR CatchSCK()
-{
-  if (!firstrunsck)
-  {
-    if (millis() - scktime > 5)
-    {
-      detachInterrupt(digitalPinToInterrupt(SCK_PIN));
-      SPISlave.begin();
-    }
-  }
-  else firstrunsck = false;
-  scktime = millis();  
-}
-
 void setup()
 {
   pinMode(16, OUTPUT); // set pin 16 as output for level shifter enable control
   digitalWrite(16, 1); // turn on level shifter
-  pinMode(SCK_PIN, INPUT); // set SCK_PIN to input for capturing rising edge
   EEPROM.begin(96); // 32 bytes for SSID and 64 bytes for PASSPHRASE
   pinMode(LED_BUILTIN, OUTPUT); 
   boolean apmode = false;
@@ -288,9 +271,7 @@ void setup()
     savedInts = noInterrupts();  //disable interrupts
     inputBuffer = data;
     spidatareceived = true;
-    });
-  
-  attachInterrupt(digitalPinToInterrupt(SCK_PIN), CatchSCK, RISING);
+    });  
 }
 
 void loop()
