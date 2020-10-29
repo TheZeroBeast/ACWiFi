@@ -298,13 +298,11 @@ void loop()
     spidatareceived = false;
     xt_wsr_ps(savedInts); // enable interrupts    
   }
-  
-  savedInts = noInterrupts();  //disable interrupts
   int startMillis = millis();
   int SCKMillis = millis();
   while (millis() - SCKMillis < 5)
   {
     if (!digitalRead(SCK_PIN)) SCKMillis = millis();
   }
-  xt_wsr_ps(savedInts); // enable interrupts
+  
 }
