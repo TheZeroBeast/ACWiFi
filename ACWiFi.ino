@@ -273,7 +273,10 @@ void setup()
 
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
-    for (int i = 0; i < len; i++) Serial.println("DATA: " i + "." + String((char *)data[i], HEX));
+    String message = "0x" + String(((char *)data)[0], HEX);
+    for (int i = 1; i < len; i++) message += ",0x" + String(((char *)data)[i], HEX);
+    
+    Serial.println("DATA: " + message);
     /*
     if (!payloadprocessing)
     {
