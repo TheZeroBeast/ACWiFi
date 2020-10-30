@@ -14,10 +14,12 @@
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
-int espledflashcounter = 0;
+unsigned long espledtimestamp;
 boolean spidatareceived = false;
 uint32_t savedInts;
-uint8_t* inputBuffer;
+uint8_t* inputBufferA;
+uint8_t* inputBufferB;
+uint8_t inputCount = 0;
 String tworawpackets;
 int rawpacketcounter = 0;
 
@@ -276,34 +278,34 @@ void setup()
   }
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
-    //savedInts = noInterrupts();  //disable interrupts
-    inputBuffer = data;
-    spidatareceived = true;
+    if (inputCount == 2) { spidatareceived = true; SPISlave.end();}
+    else if (inputCount == 1) inputBufferB = data;
+    else inputBufferA = data;
+    inputCount++;
   });  
   SPISlave.begin();
+  espledtimestamp = millis();
 }
 
 void loop()
 {  
   ArduinoOTA.handle();
-  if (espledflashcounter == 100)
+  if (millis() - espledtimestamp > 1000)
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    espledflashcounter = 0;
+    espledtimestamp = millis();
   }
-  espledflashcounter++;
+  
   if (!spidatareceived) SPISlave.begin();
-  if (spidatareceived)
+  
+  if (inputCount == 2)
   {
-    SPISlave.end();
-    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBuffer)[i], HEX);
-    rawpacketcounter++;
-    if (rawpacketcounter == 2)
-    {
-      Serial.println(tworawpackets);
-      tworawpackets = "";
-      rawpacketcounter = 0;
-    }
+    //SPISlave.end();
+    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
+    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
+    Serial.println(tworawpackets);
+    WebSerial.println(tworawpackets);
+    tworawpackets = "";
     spidatareceived = false;
   }
 }
