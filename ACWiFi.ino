@@ -12,7 +12,6 @@
 #include <EEPROM.h>
 #include <SPISlave.h>
 
-boolean runonce = true;
 boolean firstruntemp = true;
 float temptrim = 6.2;
 int espledflashcounter = 0;
@@ -269,36 +268,34 @@ void setup()
   server.begin();  
 
   Serial.println("Initializing SPI.");
-  //int startMillis = millis();
-  //int SCKMillis = millis();
-  //while (millis() - SCKMillis < 5)
-  //{
-  //  if (!digitalRead(SCK_PIN)) SCKMillis = millis();
-  //}    
-  SPISlave.begin();  
+  int startMillis = millis();
+  int SCKMillis = millis();
+  while (millis() - SCKMillis < 5)
+  {
+    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
+  }
+  SPISlave.onData([](uint8_t * data, size_t len) {
+    (void) len;
+    //savedInts = noInterrupts();  //disable interrupts
+    inputBuffer = data;
+    spidatareceived = true;
+  });  
+  SPISlave.begin();
 }
 
 void loop()
-{ 
-  if (!SPIBUSY && runonce && SPIRDY)
-  {
-    SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    savedInts = noInterrupts();  //disable interrupts
-    inputBuffer = data;
-    spidatareceived = true;
-    });
-    runonce = false;
-  }
+{  
   ArduinoOTA.handle();
-  //if (espledflashcounter == 10)
-  //{
-  //  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-  //  espledflashcounter = 0;
-  //}
-  //espledflashcounter++;
+  if (espledflashcounter == 100)
+  {
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    espledflashcounter = 0;
+  }
+  espledflashcounter++;
+  if (!spidatareceived) SPISlave.begin();
   if (spidatareceived)
   {
+    SPISlave.end();
     for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBuffer)[i], HEX);
     rawpacketcounter++;
     if (rawpacketcounter == 2)
@@ -308,6 +305,5 @@ void loop()
       rawpacketcounter = 0;
     }
     spidatareceived = false;
-    xt_wsr_ps(savedInts); // enable interrupts    
-  }  
+  }
 }
