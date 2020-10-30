@@ -11,17 +11,16 @@
 #include "html.h"
 #include <EEPROM.h>
 #include <SPISlave.h>
+#include <SimplyAtomic.h>
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
 unsigned long espledtimestamp;
-boolean spidatareceived = false;
-uint32_t savedInts;
+unsigned long spibuffertimer;
 uint8_t* inputBufferA;
 uint8_t* inputBufferB;
-uint8_t inputCount = 0;
+volatile int inputCount = 0;
 String tworawpackets;
-int rawpacketcounter = 0;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -267,45 +266,50 @@ void setup()
 
   // Start web server
   Serial.println("Starting web server.");
-  server.begin();  
-
-  Serial.println("Initializing SPI.");
-  int startMillis = millis();
-  int SCKMillis = millis();
-  while (millis() - SCKMillis < 5)
-  {
-    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
-  }
+  server.begin();
+  
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
-    if (inputCount == 2) { spidatareceived = true; SPISlave.end();}
-    else if (inputCount == 1) inputBufferB = data;
-    else inputBufferA = data;
-    inputCount++;
-  });  
+    if (inputCount < 2)
+    {
+      if (inputCount == 1) inputBufferB = data;
+      else inputBufferA = data;
+      inputCount++;
+    }
+  });
+  Serial.println("Initializing SPI.");
   SPISlave.begin();
   espledtimestamp = millis();
+  spibuffertimer = millis();
 }
 
 void loop()
-{  
+{
+  unsigned long now = millis();
   ArduinoOTA.handle();
-  if (millis() - espledtimestamp > 1000)
+  if (now - espledtimestamp > 1000)
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    espledtimestamp = millis();
+    espledtimestamp = now;
   }
-  
-  if (!spidatareceived) SPISlave.begin();
-  
-  if (inputCount == 2)
+
+  if (now - spibuffertimer > 100)
   {
-    //SPISlave.end();
-    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
-    for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
-    Serial.println(tworawpackets);
-    WebSerial.println(tworawpackets);
-    tworawpackets = "";
-    spidatareceived = false;
+    ATOMIC()
+    {
+      if (inputCount == 2)
+      {
+        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
+        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
+        inputCount = 0;
+      }
+    }
+    if (tworawpackets.length() != 0)
+    {
+      Serial.println(tworawpackets);
+      WebSerial.println(tworawpackets);
+      tworawpackets = "";
+    }
+    spibuffertimer = now;
   }
 }
