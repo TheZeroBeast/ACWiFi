@@ -11,16 +11,12 @@
 #include "html.h"
 #include <EEPROM.h>
 #include <SPISlave.h>
-#include <SimplyAtomic.h>
+//#include <SimplyAtomic.h>
+#include "MHI-AC-CTRL-Core.h"
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
 unsigned long espledtimestamp;
-unsigned long spibuffertimer;
-uint8_t* inputBufferA;
-uint8_t* inputBufferB;
-volatile int inputCount = 0;
-String tworawpackets;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -36,6 +32,8 @@ AsyncWebServer server(80);
 OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress insideThermometer;     // arrays to hold device address
+
+MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
 
 void recvMsg(uint8_t *data, size_t len)
 {
@@ -142,6 +140,7 @@ void setup()
   Serial.println("********************************");
   Serial.println(" ");
   // Load stored variables for ssid and passphrase
+  Serial.printf_P(PSTR("CPU frequency[Hz]=%lu\n"), F_CPU);
   Serial.println("Loading stored WiFi credentials from memory.");
   char ssidchar;
   for(int a = 0; a < 32; a++) // 32 char read from memory into ssid string
@@ -267,20 +266,10 @@ void setup()
   // Start web server
   Serial.println("Starting web server.");
   server.begin();
-  
-  SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    if (inputCount < 2)
-    {
-      if (inputCount == 1) inputBufferB = data;
-      else inputBufferA = data;
-      inputCount++;
-    }
-  });
-  Serial.println("Initializing SPI.");
-  SPISlave.begin();
-  espledtimestamp = millis();
-  spibuffertimer = millis();
+
+  mhi_ac_ctrl_core.init();
+
+  espledtimestamp = millis();  
 }
 
 void loop()
@@ -293,23 +282,6 @@ void loop()
     espledtimestamp = now;
   }
 
-  if (now - spibuffertimer > 100)
-  {
-    ATOMIC()
-    {
-      if (inputCount == 2)
-      {
-        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
-        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
-        inputCount = 0;
-      }
-    }
-    if (tworawpackets.length() != 0)
-    {
-      Serial.println(tworawpackets);
-      WebSerial.println(tworawpackets);
-      tworawpackets = "";
-    }
-    spibuffertimer = now;
-  }
+  int ret = mhi_ac_ctrl_core.loop(100);
+  if (ret < 0) Serial.printf_P(PSTR("mhi_ac_ctrl_core.loop error: %i\n"), ret);
 }
