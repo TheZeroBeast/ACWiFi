@@ -4,14 +4,19 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
-#include <ArduinoJson.h>
+//#include <ArduinoJson.h>
 #include <EEPROM.h>
 #include <SPISlave.h>
 #include <SimplyAtomic.h>
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
+uint8_t inputCount = 0;
+String tworawpackets = "";
+uint8_t* inputCountPnt = &inputCount;
+String* tworawpacketsPnt = &tworawpackets;
 unsigned long espledtimestamp;
+unsigned long spibuffertimer;
 
 IPAddress local_IP(192,168,1,1);
 IPAddress gateway(192,168,1,1);
@@ -61,18 +66,6 @@ String getCurrentTempSetting()
 {
   return String(float(25.0));
 }
-  
-// Replaces placeholder with LED state value
-String processor(const String& var)
-{
-  //Serial.println(var); // turn on for debugging purposes
-  if(var == "STATE"){
-    // do nothing for STATE yet....
-  }
-  else if (var == "TEMPERATURE"){
-    return getTemperature();
-  }
-}
 
 void UpdateWiFiCreds(String ssid, String pass)
 {
@@ -101,11 +94,11 @@ void UpdateWiFiCreds(String ssid, String pass)
 
 void setup()
 {
+  delay(2000);
   pinMode(16, OUTPUT); // set pin 16 as output for level shifter enable control
   digitalWrite(16, 1); // turn on level shifter
   EEPROM.begin(96); // 32 bytes for SSID and 64 bytes for PASSPHRASE
   pinMode(LED_BUILTIN, OUTPUT); 
-  pinMode(SCK_PIN, INPUT);
   boolean apmode = false;
   String ssid, passphrase;
   char * pch;
@@ -123,14 +116,10 @@ void setup()
   Serial.println("Loading stored WiFi credentials from memory.");
   char ssidchar;
   for(int a = 0; a < 32; a++) // 32 char read from memory into ssid string
-    {
-      ssid += char(EEPROM.read(a));
-    }
-  char passphrasechar;
+    ssid += char(EEPROM.read(a));
+char passphrasechar;
   for(int b = 32; b < 96; b++) // 64 char read from memory into passphrase string
-    {
-      passphrase += char(EEPROM.read(b));
-    }  
+    passphrase += char(EEPROM.read(b));
   Serial.println("SSID: " + ssid);
   Serial.println("PASSPHRASE: " + passphrase);    
   Serial.println("STATION Mode Starting.");
@@ -140,7 +129,7 @@ void setup()
   {
     if (WiFi.status() == WL_CONNECTED) break;
     Serial.println(String(i)+"s....");
-    delay(1000);      
+    delay(1000);
   }
   if (WiFi.status() != WL_CONNECTED) 
   {
@@ -172,17 +161,33 @@ void setup()
   ArduinoOTA.begin();
   Serial.println("OTA ready");  
   Serial.println("Initializing DS18B20 temperature sensor.");
-  setup_ds18x20();
   
+  setup_ds18x20();
+
   SPISlave.onData([](uint8_t * data, size_t len) {
     (void) len;
-    if (inputCount < 2)
+    uint8_t count = *inputCountPnt;
+    Serial.println("SPIVar:" + String(inputCount) + ". PntVal:" + String(count) + ". Pnt:0x" + String((unsigned int)inputCountPnt, HEX));
+    if (count < 2 && count == 1)
     {
-      if (inputCount == 1) inputBufferB = data;
-      else inputBufferA = data;
-      inputCount++;
+      Serial.println("SPIVar1stIF: " + String(inputCount) + ". Pnt: " + String(count));
+      for (uint8_t i = 0; i < len; i++)
+      {
+        *tworawpacketsPnt += "0x" + String(((char *)data)[i],HEX);
+      }
+      *inputCountPnt = count + 1;
+    }
+    if (count < 2 && count == 0)
+    {
+      Serial.println("SPIVar2ndIF: " + String(inputCount) + ". Pnt: " + String(*inputCountPnt));
+      for (uint8_t i = 0; i < len; i++)
+      {
+        *tworawpacketsPnt += "0x" + String(((char *)data)[i],HEX);
+      }
+      *inputCountPnt = count + 1;
     }
   });
+  SPISlave.begin();
 
   espledtimestamp = millis();
   spibuffertimer = millis();
@@ -198,22 +203,14 @@ void loop()
     espledtimestamp = now;
   }
 
-  if (now - spibuffertimer > 100)
+  if (now - spibuffertimer > 1000)
   {
-    ATOMIC()
-    {
-      if (inputCount == 2)
-      {
-        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
-        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
-        inputCount = 0;
-      }
-    }
-    if (tworawpackets.length() != 0)
+    Serial.println("LOOPVar:" + String(inputCount) + ". PntVal:" + String(*inputCountPnt) + ". Pnt:0x" + String((unsigned int)inputCountPnt, HEX));
+    if (inputCount == 2)
     {
       Serial.println(tworawpackets);
-      WebSerial.println(tworawpackets);
-      tworawpackets = "";
+      *tworawpacketsPnt = "";
+      *inputCountPnt = 0;
     }
     spibuffertimer = now;
   }
