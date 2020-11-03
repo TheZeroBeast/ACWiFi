@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 #include <EEPROM.h>
 #include <SPISlave.h>
-//#include <SimplyAtomic.h>
+#include <SimplyAtomic.h>
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
@@ -173,8 +173,19 @@ void setup()
   Serial.println("OTA ready");  
   Serial.println("Initializing DS18B20 temperature sensor.");
   setup_ds18x20();
+  
+  SPISlave.onData([](uint8_t * data, size_t len) {
+    (void) len;
+    if (inputCount < 2)
+    {
+      if (inputCount == 1) inputBufferB = data;
+      else inputBufferA = data;
+      inputCount++;
+    }
+  });
 
-  espledtimestamp = millis();  
+  espledtimestamp = millis();
+  spibuffertimer = millis();
 }
 
 void loop()
@@ -185,5 +196,25 @@ void loop()
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     espledtimestamp = now;
+  }
+
+  if (now - spibuffertimer > 100)
+  {
+    ATOMIC()
+    {
+      if (inputCount == 2)
+      {
+        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferA)[i], HEX);
+        for (int i = 0; i < 32; i++) tworawpackets += String(((char *)inputBufferB)[i], HEX);
+        inputCount = 0;
+      }
+    }
+    if (tworawpackets.length() != 0)
+    {
+      Serial.println(tworawpackets);
+      WebSerial.println(tworawpackets);
+      tworawpackets = "";
+    }
+    spibuffertimer = now;
   }
 }
