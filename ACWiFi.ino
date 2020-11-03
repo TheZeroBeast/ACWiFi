@@ -1,18 +1,13 @@
 #include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include <stdio.h>
 #include <string.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
 #include <ArduinoJson.h>
-#include <WebSerial.h>
-#include "html.h"
 #include <EEPROM.h>
 #include <SPISlave.h>
 //#include <SimplyAtomic.h>
-#include "MHI-AC-CTRL-Core.h"
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
@@ -26,25 +21,9 @@ IPAddress subnet(255,255,255,0);
 #define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
 #define SCK_PIN 14
 
-// Create AsyncWebServer object on port 80
-AsyncWebServer server(80);
-
 OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress insideThermometer;     // arrays to hold device address
-
-MHI_AC_Ctrl_Core mhi_ac_ctrl_core;
-
-void recvMsg(uint8_t *data, size_t len)
-{
-  WebSerial.println("Received Data...");
-  String d = "";
-  for(int i=0; i < len; i++)
-  {
-    d += char(data[i]);
-  }
-  WebSerial.println(d);
-}
 
 void setup_ds18x20() 
 {
@@ -195,80 +174,6 @@ void setup()
   Serial.println("Initializing DS18B20 temperature sensor.");
   setup_ds18x20();
 
-// Route for api status request
-  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
-    String JSON;
-    StaticJsonDocument<1000> jsonBuffer;
-    //load test data
-    jsonBuffer["field1"] = "Test Field 1";
-    jsonBuffer["field2"] = "Test Field 2";
-    jsonBuffer["field3"] = "Test Field 3";
-    jsonBuffer["field4"] = "Test Field 4";
-    jsonBuffer["field5"] = "Test Field 5";
-    jsonBuffer["field6"] = "Test Field 6";
-    jsonBuffer["field7"] = "Test Field 7";
-    jsonBuffer["field8"] = "Test Field 8";
-    jsonBuffer["field9"] = "Test Field 9";
-    jsonBuffer["field10"] = "Test Field 10";
-    serializeJson(jsonBuffer, JSON);
-    request->send(200, PSTR("text/html"), JSON);
-  });
-
-// Route for setup web page
-  String setuppage = SETUP_page;
-  server.on("/setup.html", HTTP_GET, [setuppage](AsyncWebServerRequest *request){
-    request->send(200, "text/html", setuppage);
-  });
-  
-  // Route for root / web page
-  String indexpage = INDEX_page;
-  server.on("/", HTTP_GET, [indexpage](AsyncWebServerRequest *request){
-    request->send(200, "text/html", indexpage);
-  });
-
-  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getTemperature().c_str());
-  });
-
-  server.on("/currenttempsetting", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getCurrentTempSetting().c_str());
-  });
-
-  server.on("/updatewifi", HTTP_GET, [](AsyncWebServerRequest *request){
-    String newssid;
-    String newpass;
-    if (request->hasParam("ssid"))
-    {
-      newssid = request->getParam("ssid")->value();
-      newpass = request->getParam("pass")->value();
-      UpdateWiFiCreds(newssid, newpass);
-      request->send_P(200, "text/plain", "WiFi Settings Updated OK, restarting system in 5 seconds.");
-      Serial.println("*******************************");
-      Serial.println("*        Updating WiFi        *");
-      Serial.println("*         Credentials         *");
-      Serial.println("*******************************");
-      Serial.println("New SSID: " + newssid);
-      Serial.println("New PASS: " + newpass);
-      Serial.println("*******************************");
-      Serial.println("    Restarting system NOW!     ");
-      Serial.println("*******************************");
-      ESP.restart();
-    }
-    else
-      request->send_P(200, "text/plain", "Nothing to update");
-  });
-
-  Serial.println("Starting webserial.");
-  // Start webserial - accessible at "<IP Address>/webserial" in browser
-  WebSerial.begin(&server);
-  WebSerial.msgCallback(recvMsg);
-
-  // Start web server
-  Serial.println("Starting web server.");
-  server.begin();
-
-  mhi_ac_ctrl_core.init();
-
   espledtimestamp = millis();  
 }
 
@@ -281,7 +186,4 @@ void loop()
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     espledtimestamp = now;
   }
-
-  int ret = mhi_ac_ctrl_core.loop(100);
-  if (ret < 0) Serial.printf_P(PSTR("mhi_ac_ctrl_core.loop error: %i\n"), ret);
 }
