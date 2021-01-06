@@ -4,10 +4,25 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
-//#include <ArduinoJson.h>
 #include <EEPROM.h>
-#include <SPISlave.h>
-#include <SimplyAtomic.h>
+
+#include "MHI-AC-Ctrl.h"
+
+const PROGMEM char* kResponseOk = "true";
+const PROGMEM char* kResponseFail = "false";
+
+#define D_CMND_MHI_POWER "mhi"
+#define D_CMND_MHI_MODE "Mode"
+#define D_CMND_MHI_TSETPOINT "Tsetpoint"
+#define D_CMND_MHI_FAN "Fan"
+#define D_CMND_MHI_VANES "Vanes"
+#define D_CMND_MHI_ERROPDATA "ErrOpData"
+
+#define MESSZ 1040
+
+const char kMhiCommands[] PROGMEM = "|" D_CMND_MHI_POWER "|" D_CMND_MHI_MODE "|" D_CMND_MHI_TSETPOINT "|" D_CMND_MHI_FAN "|" D_CMND_MHI_VANES "|" D_CMND_MHI_ERROPDATA;
+
+const uint16_t TOPSZ = 151;
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
@@ -29,6 +44,18 @@ IPAddress subnet(255,255,255,0);
 OneWire oneWire(ONE_WIRE_BUS);       // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature.
 DeviceAddress insideThermometer;     // arrays to hold device address
+
+class MhiEventHandler : public CallbackInterface 
+{
+public:
+    bool cbiMhiEventHandlerFunction(const char* key, const char* value) {
+      //Response_P(PSTR("%s"), value);
+      //MqttPublishPrefixTopic_P(TELE, key);
+    }
+};
+
+MhiEventHandler mhiEventHandler;
+MHIAcCtrl mhiAc = MHIAcCtrl(&mhiEventHandler);
 
 void setup_ds18x20() 
 {
@@ -160,35 +187,14 @@ char passphrasechar;
   });
   ArduinoOTA.begin();
   Serial.println("OTA ready");  
-  Serial.println("Initializing DS18B20 temperature sensor.");
-  
+  Serial.println("Initializing DS18B20 temperature sensor.");  
   setup_ds18x20();
-
-  SPISlave.onData([](uint8_t * data, size_t len) {
-    (void) len;
-    uint8_t count = *inputCountPnt;
-    Serial.println("SPIVar:" + String(inputCount) + ". PntVal:" + String(count) + ". Pnt:0x" + String((unsigned int)inputCountPnt, HEX));
-    if (count < 2 && count == 1)
-    {
-      Serial.println("SPIVar1stIF: " + String(inputCount) + ". Pnt: " + String(count));
-      for (uint8_t i = 0; i < len; i++)
-      {
-        *tworawpacketsPnt += "0x" + String(((char *)data)[i],HEX);
-      }
-      *inputCountPnt = count + 1;
-    }
-    if (count < 2 && count == 0)
-    {
-      Serial.println("SPIVar2ndIF: " + String(inputCount) + ". Pnt: " + String(*inputCountPnt));
-      for (uint8_t i = 0; i < len; i++)
-      {
-        *tworawpacketsPnt += "0x" + String(((char *)data)[i],HEX);
-      }
-      *inputCountPnt = count + 1;
-    }
-  });
-  SPISlave.begin();
-
+  Serial.println("MHI SPI Initializing...");
+  pinMode(SCK, INPUT);
+  pinMode(MOSI, INPUT);
+  pinMode(MISO, OUTPUT);
+  Serial.println("MHI loop started...");
+  mhiAc.loop();
   espledtimestamp = millis();
   spibuffertimer = millis();
 }
@@ -201,17 +207,5 @@ void loop()
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     espledtimestamp = now;
-  }
-
-  if (now - spibuffertimer > 1000)
-  {
-    Serial.println("LOOPVar:" + String(inputCount) + ". PntVal:" + String(*inputCountPnt) + ". Pnt:0x" + String((unsigned int)inputCountPnt, HEX));
-    if (inputCount == 2)
-    {
-      Serial.println(tworawpackets);
-      *tworawpacketsPnt = "";
-      *inputCountPnt = 0;
-    }
-    spibuffertimer = now;
   }
 }
