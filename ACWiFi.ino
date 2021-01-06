@@ -20,6 +20,10 @@ const PROGMEM char* kResponseFail = "false";
 
 #define MESSZ 1040
 
+#define SCK 14
+#define MOSI 13
+#define MISO 12
+
 const char kMhiCommands[] PROGMEM = "|" D_CMND_MHI_POWER "|" D_CMND_MHI_MODE "|" D_CMND_MHI_TSETPOINT "|" D_CMND_MHI_FAN "|" D_CMND_MHI_VANES "|" D_CMND_MHI_ERROPDATA;
 
 const uint16_t TOPSZ = 151;
