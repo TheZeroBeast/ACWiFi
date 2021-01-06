@@ -63,7 +63,7 @@ void MHIAcCtrl::loop() {
             SCKMillis = millis();
             if (SCKMillis - lastDatapacketMillis > 200) {
                 update_sync(false);
-                Serial.println("async: millis() - lastDatapacketMillis > 200");
+                Serial.println("Error: No SPI Clock (SCK) detected!");
             }
         }
     }
@@ -280,7 +280,12 @@ void MHIAcCtrl::loop() {
                 m_cb->cbiMhiEventHandlerFunction(PSTR("Errorcode"), strtmp);
             }
 
-
+            // section below added by Dan to print RX contents to serial for dev testing
+            for(int i = 0; i < sizeof(rx_SPIframe); i++)
+            {
+              Serial.println(rx_SPIframe[i]);
+            }
+            
             // Operating Data
             switch (rx_SPIframe[DB9]) {
                 case 0x02: // 1 MODE
