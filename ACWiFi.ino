@@ -292,7 +292,7 @@ char passphrasechar;
   WebSerial.begin(&server);
   WebSerial.msgCallback(recvMsg);
   // Start web server
-  Serial.println("Starting web server.");
+  Serial.println("Starting webserver.");
   server.begin();
   espledtimestamp = millis();
   spibuffertimer = millis();
