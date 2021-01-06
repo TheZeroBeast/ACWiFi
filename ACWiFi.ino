@@ -198,7 +198,7 @@ char passphrasechar;
   pinMode(MOSI, INPUT);
   pinMode(MISO, OUTPUT);
   Serial.println("MHI loop started...");
-  mhiAc.loop();
+  //mhiAc.loop();
   espledtimestamp = millis();
   spibuffertimer = millis();
 }
@@ -212,4 +212,5 @@ void loop()
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     espledtimestamp = now;
   }
+  mhiAc.loop();
 }
