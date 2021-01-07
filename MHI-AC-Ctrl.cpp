@@ -8,9 +8,8 @@ extern "C" {
 
 #include "MHI-AC-Ctrl.h"
 
-//                        sb0   sb1   sb2   db0   db1   db2   db3   db4   db5   db6   db7   db8   db9  db10  db11  db12  db13  db14  chkH  chkL
-byte tx_SPIframe[20] = {0xA9, 0x00, 0x07, 0x50, 0x10, 0x2e, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xff, 0xff, 0xff,
-                        0x0f, 0x00, 0x05, 0xf5};
+//                       sb0   sb1   sb2   db0   db1   db2   db3   db4   db5   db6   db7   db8   db9  db10  db11  db12  db13  db14  chkH  chkL
+byte tx_SPIframe[20] = {0xA9, 0x00, 0x07, 0x50, 0x10, 0x2e, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x05, 0xf5};
 
 uint updateMQTTStatus_opdata = opdataCnt;
 
@@ -184,16 +183,20 @@ void MHIAcCtrl::loop() {
             update_sync(true);
         lastDatapacketMillis = millis();
 
-        digitalWrite(LED_BUILTIN, HIGH);
         if (new_datapacket_received) {
-            new_datapacket_received = false;
+            new_datapacket_received = false;            
+            Serial.println("Valid datapacket received!"); // added by Dan
             bool updateMQTTStatus = false;
             if (updateMQTTStatus | ((rx_SPIframe[DB0] & 0x01) != power_old)) { // Power
                 power_old = rx_SPIframe[DB0] & 0x01;
-                if (power_old == 0)
+                if (power_old == 0) {
                     m_cb->cbiMhiEventHandlerFunction(PSTR("Power"), PSTR("Off"));
-                else
+                    Serial.println("Power: OFF");
+                }
+                else {
                     m_cb->cbiMhiEventHandlerFunction(PSTR("Power"), PSTR("On"));
+                    Serial.println("Power: ON");
+                }
             }
 
             if (updateMQTTStatus | ((rx_SPIframe[DB0] & 0x1c) != mode_old)) { // Mode

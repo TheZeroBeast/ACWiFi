@@ -47,9 +47,9 @@ public:
     bool cbiMhiEventHandlerFunction(const char* key, const char* value) {
       //Response_P(PSTR("%s"), value);
       //MqttPublishPrefixTopic_P(TELE, key);
-      Serial.println("Event Handler Message on line below...");
-      Serial.println(value);
-      Serial.println(key);
+      Serial.println(String("Key: ")+key+String(" Value: ")+value);
+      //Serial.println(value);
+      //Serial.println(key);
     }
 };
 
