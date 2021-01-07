@@ -55,12 +55,7 @@ public:
 
 MhiEventHandler mhiEventHandler;
 MHIAcCtrl mhiAc = MHIAcCtrl(&mhiEventHandler);
-CallbackInterface_Status *m_cbiStatus;
 
-void MHIAcCtrlStatus(CallbackInterface_Status *cb) {
-      m_cbiStatus = cb;
-    };
-    
 void recvMsg(uint8_t *data, size_t len)
 {
   WebSerial.println("Received Data...");
