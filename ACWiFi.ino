@@ -5,35 +5,17 @@
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
-
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Wire.h>
 #include <ArduinoJson.h>
 #include <WebSerial.h>
 #include "html.h"
-
 #include "MHI-AC-Ctrl.h"
-
-const PROGMEM char* kResponseOk = "true";
-const PROGMEM char* kResponseFail = "false";
-
-#define D_CMND_MHI_POWER "mhi"
-#define D_CMND_MHI_MODE "Mode"
-#define D_CMND_MHI_TSETPOINT "Tsetpoint"
-#define D_CMND_MHI_FAN "Fan"
-#define D_CMND_MHI_VANES "Vanes"
-#define D_CMND_MHI_ERROPDATA "ErrOpData"
-
-#define MESSZ 1040
 
 #define SCK 14
 #define MOSI 13
 #define MISO 12
-
-const char kMhiCommands[] PROGMEM = "|" D_CMND_MHI_POWER "|" D_CMND_MHI_MODE "|" D_CMND_MHI_TSETPOINT "|" D_CMND_MHI_FAN "|" D_CMND_MHI_VANES "|" D_CMND_MHI_ERROPDATA;
-
-const uint16_t TOPSZ = 151;
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
@@ -65,6 +47,9 @@ public:
     bool cbiMhiEventHandlerFunction(const char* key, const char* value) {
       //Response_P(PSTR("%s"), value);
       //MqttPublishPrefixTopic_P(TELE, key);
+      Serial.println("Event Handler Message on line below...");
+      Serial.println(value);
+      Serial.println(key);
     }
 };
 
