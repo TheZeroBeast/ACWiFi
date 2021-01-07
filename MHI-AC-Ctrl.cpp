@@ -260,8 +260,7 @@ void MHIAcCtrl::loop() {
                 vanes_old = vanestmp;
             }
 
-            int8_t troom_diff = rx_SPIframe[DB3] -
-                                troom_old; // avoid using other functions inside the brackets of abs, see https://www.arduino.cc/reference/en/language/functions/math/abs/
+            int8_t troom_diff = rx_SPIframe[DB3] - troom_old; // avoid using other functions inside the brackets of abs, see https://www.arduino.cc/reference/en/language/functions/math/abs/
             if (updateMQTTStatus | (abs(troom_diff) > 1 & lastDatapacketMillis - lastTroomMillis >
                                                           30000)) { // Room temperature delta > 0.25°C
                 lastTroomMillis = lastDatapacketMillis;
@@ -284,10 +283,10 @@ void MHIAcCtrl::loop() {
             }
 
             // section below added by Dan to print RX contents to serial for dev testing
-            for(int i = 0; i < sizeof(rx_SPIframe); i++)
-            {
-              Serial.println(rx_SPIframe[i]);
-            }
+            //for(int i = 0; i < sizeof(rx_SPIframe); i++)
+            //{
+            //  Serial.println(rx_SPIframe[i]);
+            //}
             
             // Operating Data
             switch (rx_SPIframe[DB9]) {
