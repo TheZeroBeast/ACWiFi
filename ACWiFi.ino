@@ -272,7 +272,6 @@ char passphrasechar;
   pinMode(SCK, INPUT);
   pinMode(MOSI, INPUT);
   pinMode(MISO, OUTPUT);
-  MHIAcCtrlStatus(&mhiStatusHandler);
   Serial.println("Starting webserial.");
   // Start webserial - accessible at "<IP Address>/webserial" in browser
   WebSerial.begin(&server);
