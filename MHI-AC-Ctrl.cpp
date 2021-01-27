@@ -121,8 +121,7 @@ void MHIAcCtrl::loop() {
                 tx_SPIframe[DB0] = new_Power;
                 Serial.println("new DB0 value below:");
                 Serial.println(tx_SPIframe[DB0]);                
-                set_Power = false;
-                newCommand = false;
+                set_Power = false;                
             }
 
             if (set_Mode) 
@@ -206,7 +205,7 @@ void MHIAcCtrl::loop() {
                 payload_byte += bit_mask;
             bit_mask = bit_mask << 1;
         }
-
+        
         if (rx_SPIframe[byte_cnt] != payload_byte) {
             new_datapacket_received = true;
             rx_SPIframe[byte_cnt] = payload_byte;
@@ -215,6 +214,7 @@ void MHIAcCtrl::loop() {
         if (byte_cnt < 18)
             rx_checksum += payload_byte;
     }
+    newCommand = false; // reset for next command - Dan
     if (((rx_SPIframe[SB0] & 0xfe) == 0x6c) & (rx_SPIframe[SB1] == 0x80) & (rx_SPIframe[SB2] == 0x04) &
         ((rx_SPIframe[CBH] << 8 | rx_SPIframe[CBL]) == rx_checksum)) {
         valid_datapacket_received = true;
