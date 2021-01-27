@@ -9,6 +9,7 @@ extern "C" {
 #include "MHI-AC-Ctrl.h"
 
 bool TXEnabled = false;
+bool newCommand = false;
 
 //                       sb0   sb1   sb2   db0   db1   db2   db3   db4   db5   db6   db7   db8   db9  db10  db11  db12  db13  db14  chkH  chkL
 byte tx_SPIframe[20] = {0xA9, 0x00, 0x07, 0x50, 0x10, 0x2e, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x05, 0xf5};
@@ -121,6 +122,7 @@ void MHIAcCtrl::loop() {
                 Serial.println("new DB0 value below:");
                 Serial.println(tx_SPIframe[DB0]);                
                 set_Power = false;
+                newCommand = false;
             }
 
             if (set_Mode) 
@@ -176,7 +178,7 @@ void MHIAcCtrl::loop() {
     tx_SPIframe[CBH] = highByte(tx_checksum);
     tx_SPIframe[CBL] = lowByte(tx_checksum);
 
-    if (TXEnabled)
+    if (TXEnabled && newCommand)
     {
       Serial.println("Transmitted Data:");
       for (uint8_t i = 0; i < 19; i++) {
@@ -192,7 +194,7 @@ void MHIAcCtrl::loop() {
         byte bit_mask = 1;
         for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
             while (digitalRead(SCK)) {} // wait for falling edge
-            if (TXEnabled)
+            if (TXEnabled && newCommand)
             {
               if ((tx_SPIframe[byte_cnt] & bit_mask) > 0)
                   digitalWrite(MISO, 1);
@@ -225,7 +227,11 @@ void MHIAcCtrl::loop() {
         }
         Serial.printf("\r\n");
     }
-
+    Serial.println("Received Data:");
+    for (uint8_t i = 0; i < 19; i++) {
+      Serial.printf("%.2X ", rx_SPIframe[i]);
+      }
+    Serial.printf("\r\n");
     if (valid_datapacket_received) { // valid MOSI frame received
         packet_cnt++;
         repetitionNo++;
@@ -237,11 +243,6 @@ void MHIAcCtrl::loop() {
         if (new_datapacket_received) {
             new_datapacket_received = false;
             if (!TXEnabled) Serial.println("Valid datapacket received. TX is now authorised!"); // added by Dan
-            Serial.println("Received Data:");
-            for (uint8_t i = 0; i < 19; i++) {
-            Serial.printf("%.2X ", rx_SPIframe[i]);
-            }
-            Serial.printf("\r\n");
             TXEnabled = true; // Enabled TX - Dan 
             bool updateMQTTStatus = false;
             if (updateMQTTStatus | ((rx_SPIframe[DB0] & 0x01) != power_old)) { // Power
@@ -555,6 +556,7 @@ bool MHIAcCtrl::powerOn() {
     set_Power = true;
     Serial.println("Power ON button clicked!");
     Serial.println(new_Power);
+    newCommand = true;
     return true;
 }
 
@@ -564,6 +566,7 @@ bool MHIAcCtrl::powerOff() {
     set_Power = true;
     Serial.println("Power OFF button clicked!");
     Serial.println(new_Power);
+    newCommand = true;
     return true;
 }
 
