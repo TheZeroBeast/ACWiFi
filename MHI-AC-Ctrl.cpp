@@ -169,6 +169,15 @@ void MHIAcCtrl::loop() {
     tx_SPIframe[CBH] = highByte(tx_checksum);
     tx_SPIframe[CBL] = lowByte(tx_checksum);
 
+    if (TXEnabled)
+    {
+      Serial.println("Transmitted Data:");
+      for (uint8_t i = 0; i < 19; i++) {
+      Serial.printf("%.2X ", tx_SPIframe[i]);
+      }
+      Serial.printf("\r\n");
+    }
+
     new_datapacket_received = false;
     uint16_t rx_checksum = 0;
     for (uint8_t byte_cnt = 0; byte_cnt < 20; byte_cnt++) { // read and write a data packet of 20 bytes
@@ -220,8 +229,13 @@ void MHIAcCtrl::loop() {
 
         if (new_datapacket_received) {
             new_datapacket_received = false;
-            TXEnabled = true; // Enabled TX - Dan            
-            Serial.println("Valid datapacket received. TX is now authorised!"); // added by Dan
+            if (!TXEnabled) Serial.println("Valid datapacket received. TX is now authorised!"); // added by Dan
+            Serial.println("Received Data:");
+            for (uint8_t i = 0; i < 19; i++) {
+            Serial.printf("%.2X ", rx_SPIframe[i]);
+            }
+            Serial.printf("\r\n");
+            TXEnabled = true; // Enabled TX - Dan 
             bool updateMQTTStatus = false;
             if (updateMQTTStatus | ((rx_SPIframe[DB0] & 0x01) != power_old)) { // Power
                 power_old = rx_SPIframe[DB0] & 0x01;
