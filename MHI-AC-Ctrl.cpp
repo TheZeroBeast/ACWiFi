@@ -215,7 +215,7 @@ void MHIAcCtrl::loop() {
         if (byte_cnt < 18)
             rx_checksum += payload_byte;
     }
-    newCommand = false; // reset for next command - Dan
+    if (newCommand) newCommand = false; // reset for next command - Dan
     if (((rx_SPIframe[SB0] & 0xfe) == 0x6c) & (rx_SPIframe[SB1] == 0x80) & (rx_SPIframe[SB2] == 0x04) &
         ((rx_SPIframe[CBH] << 8 | rx_SPIframe[CBL]) == rx_checksum)) {
         valid_datapacket_received = true;
