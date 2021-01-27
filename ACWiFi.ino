@@ -244,14 +244,14 @@ char passphrasechar;
   server.on("/currenttempsetting", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getCurrentTempSetting().c_str());
   });
-  //server.on("/poweron", HTTP_GET, [](AsyncWebServerRequest *request){
-  //  mhiAc.powerOn();
-  //  request->send(200, "text/html", indexpage);
-  //});
-  //server.on("/poweroff", HTTP_GET, [](AsyncWebServerRequest *request){
-  //  mhiAc.powerOff();
-  //  request->send(200, "text/html", indexpage);
-  //});
+  server.on("/poweron", HTTP_GET, [indexpage](AsyncWebServerRequest *request){
+    mhiAc.powerOn();
+    request->send(200, "text/html", indexpage);
+  });
+  server.on("/poweroff", HTTP_GET, [indexpage](AsyncWebServerRequest *request){
+    mhiAc.powerOff();
+    request->send(200, "text/html", indexpage);
+  });
     
   server.on("/updatewifi", HTTP_GET, [](AsyncWebServerRequest *request){
     String newssid;
