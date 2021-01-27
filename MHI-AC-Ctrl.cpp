@@ -546,6 +546,7 @@ void MHIAcCtrl::loop() {
 bool MHIAcCtrl::powerOn() {
     new_Power = rx_SPIframe[DB0] | 0b11;
     set_Power = true;
+    Serial.println("Power ON button clicked!");
     return true;
 }
 
@@ -553,6 +554,7 @@ bool MHIAcCtrl::powerOff() {
     new_Power = rx_SPIframe[DB0] & 0b11111100;
     new_Power = new_Power | 0b10;
     set_Power = true;
+    Serial.println("Power OFF button clicked!");
     return true;
 }
 
