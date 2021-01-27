@@ -112,7 +112,14 @@ void MHIAcCtrl::loop() {
             }
             if (set_Power) 
             {
+                Serial.println("Loading new power value into txframe");
+                Serial.println("new_Power value below:");
+                Serial.println(new_Power);
+                Serial.println("old DB0 value below:");
+                Serial.println(tx_SPIframe[DB0]);
                 tx_SPIframe[DB0] = new_Power;
+                Serial.println("new DB0 value below:");
+                Serial.println(tx_SPIframe[DB0]);                
                 set_Power = false;
             }
 
@@ -547,6 +554,7 @@ bool MHIAcCtrl::powerOn() {
     new_Power = rx_SPIframe[DB0] | 0b11;
     set_Power = true;
     Serial.println("Power ON button clicked!");
+    Serial.println(new_Power);
     return true;
 }
 
@@ -555,6 +563,7 @@ bool MHIAcCtrl::powerOff() {
     new_Power = new_Power | 0b10;
     set_Power = true;
     Serial.println("Power OFF button clicked!");
+    Serial.println(new_Power);
     return true;
 }
 
