@@ -8,6 +8,8 @@ extern "C" {
 
 #include "MHI-AC-Ctrl.h"
 
+bool TXEnabled = false;
+
 //                       sb0   sb1   sb2   db0   db1   db2   db3   db4   db5   db6   db7   db8   db9  db10  db11  db12  db13  db14  chkH  chkL
 byte tx_SPIframe[20] = {0xA9, 0x00, 0x07, 0x50, 0x10, 0x2e, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x05, 0xf5};
 
@@ -67,65 +69,95 @@ void MHIAcCtrl::loop() {
         }
     }
 
-    if (frame++ > 19) { // setup tx frame
+    if (frame++ > 19 && TXEnabled) 
+    { // setup tx frame
         doubleframe++;  // toggle between 0 and 1
         tx_SPIframe[DB14] = (doubleframe % 2) << 2;
         frame = 1;
-        if (doubleframe % 2) {
-            if (erropdataCnt == 0) {
-                tx_SPIframe[DB0] = 0x00;
-                tx_SPIframe[DB1] = 0x00;
-                tx_SPIframe[DB2] = 0x00;
-                tx_SPIframe[DB6] = opdata[opdataNo][0];
-                tx_SPIframe[DB9] = opdata[opdataNo][1];
-                tx_SPIframe[DB10] = opdata[opdataNo][2];
-                tx_SPIframe[DB11] = opdata[opdataNo][3];
-                tx_SPIframe[DB12] = opdata[opdataNo][4];
+        if (doubleframe % 2) 
+        {
+            if (erropdataCnt == 0) 
+            {
+                //tx_SPIframe[DB0] = 0x00; - Dan
+                tx_SPIframe[DB0] = rx_SPIframe[DB0];
+                //tx_SPIframe[DB1] = 0x00; - Dan
+                tx_SPIframe[DB1] = rx_SPIframe[DB1];
+                //tx_SPIframe[DB2] = 0x00; - Dan
+                tx_SPIframe[DB2] = rx_SPIframe[DB2];
+                //tx_SPIframe[DB6] = opdata[opdataNo][0]; - Dan
+                tx_SPIframe[DB6] = rx_SPIframe[DB6];
+                //tx_SPIframe[DB9] = opdata[opdataNo][1]; - Dan
+                tx_SPIframe[DB9] = rx_SPIframe[DB9];
+                //tx_SPIframe[DB10] = opdata[opdataNo][2]; - Dan
+                tx_SPIframe[DB10] = rx_SPIframe[DB10];
+                //tx_SPIframe[DB11] = opdata[opdataNo][3]; - Dan
+                tx_SPIframe[DB11] = rx_SPIframe[DB11];
+                //tx_SPIframe[DB12] = opdata[opdataNo][4]; - Dan
+                tx_SPIframe[DB12] = rx_SPIframe[DB12];
                 opdataNo = (opdataNo + 1) % opdataCnt;
-            } else { // error operating data available
-                tx_SPIframe[DB6] = 0x80;
-                tx_SPIframe[DB9] = 0xff;
-                tx_SPIframe[DB10] = 0xff;
-                tx_SPIframe[DB11] = 0xff;
-                tx_SPIframe[DB12] = 0xff;
+            } 
+            else 
+            { // error operating data available
+                //tx_SPIframe[DB6] = 0x80; - Dan
+                tx_SPIframe[DB6] = rx_SPIframe[DB6];
+                //tx_SPIframe[DB9] = 0xff; - Dan
+                tx_SPIframe[DB9] = rx_SPIframe[DB9];
+                //tx_SPIframe[DB10] = 0xff; - Dan
+                tx_SPIframe[DB10] = rx_SPIframe[DB10];
+                //tx_SPIframe[DB11] = 0xff; - Dan
+                tx_SPIframe[DB11] = rx_SPIframe[DB11];
+                //tx_SPIframe[DB12] = 0xff; - Dan
+                tx_SPIframe[DB12] = rx_SPIframe[DB12];
                 erropdataCnt--;
             }
-            if (set_Power) {
+            if (set_Power) 
+            {
                 tx_SPIframe[DB0] = new_Power;
                 set_Power = false;
             }
 
-            if (set_Mode) {
+            if (set_Mode) 
+            {
                 tx_SPIframe[DB0] = new_Mode;
                 set_Mode = false;
             }
 
-            if (set_Tsetpoint) {
+            if (set_Tsetpoint) 
+            {
                 tx_SPIframe[DB2] = 2 * new_Tsetpoint | 0b10000000;
                 set_Tsetpoint = false;
             }
 
-            if (set_Fan) {
-                if (new_Fan == 4) {
+            if (set_Fan) 
+            {
+                if (new_Fan == 4) 
+                {
                     tx_SPIframe[DB1] = 0b1010;
                     tx_SPIframe[DB6] |= 0b00010000;
-                } else {
+                } 
+                else 
+                {
                     tx_SPIframe[DB1] = (1 << 3) | (new_Fan - 1);
                 }
                 set_Fan = false;
             }
 
-            if (set_Vanes) {
-                if (new_Vanes == 5) { //5: swing
+            if (set_Vanes) 
+            {
+                if (new_Vanes == 5) 
+                { //5: swing
                     tx_SPIframe[DB0] = 0b11000000;
-                } else {
+                } 
+                else 
+                {
                     tx_SPIframe[DB0] = 0b10000000; // disable swing
                     tx_SPIframe[DB1] = (1 << 7) | ((new_Vanes - 1) << 4);
                 }
                 set_Vanes = false;
             }
 
-            if (request_erropData) {
+            if (request_erropData) 
+            {
                 tx_SPIframe[DB6] = 0x80;
                 tx_SPIframe[DB9] = 0x45;
                 request_erropData = false;
@@ -144,10 +176,13 @@ void MHIAcCtrl::loop() {
         byte bit_mask = 1;
         for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
             while (digitalRead(SCK)) {} // wait for falling edge
-            if ((tx_SPIframe[byte_cnt] & bit_mask) > 0)
-                digitalWrite(MISO, 1);
-            else
-                digitalWrite(MISO, 0);
+            if (TXEnabled)
+            {
+              if ((tx_SPIframe[byte_cnt] & bit_mask) > 0)
+                  digitalWrite(MISO, 1);
+              else
+                  digitalWrite(MISO, 0);
+            }
             while (!digitalRead(SCK)) {} // wait for rising edge
             if (digitalRead(MOSI))
                 payload_byte += bit_mask;
@@ -184,8 +219,9 @@ void MHIAcCtrl::loop() {
         lastDatapacketMillis = millis();
 
         if (new_datapacket_received) {
-            new_datapacket_received = false;            
-            Serial.println("Valid datapacket received!"); // added by Dan
+            new_datapacket_received = false;
+            TXEnabled = true; // Enabled TX - Dan            
+            Serial.println("Valid datapacket received. TX is now authorised!"); // added by Dan
             bool updateMQTTStatus = false;
             if (updateMQTTStatus | ((rx_SPIframe[DB0] & 0x01) != power_old)) { // Power
                 power_old = rx_SPIframe[DB0] & 0x01;
@@ -496,14 +532,13 @@ void MHIAcCtrl::loop() {
 bool MHIAcCtrl::powerOn() {
     new_Power = rx_SPIframe[DB0] | 0b11;
     set_Power = true;
-    new_Power = 0b11;
     return true;
 }
 
 bool MHIAcCtrl::powerOff() {
-    new_Power = rx_SPIframe[DB0] | 0b11;
+    new_Power = rx_SPIframe[DB0] & 0b11111100;
+    new_Power = new_Power | 0b10;
     set_Power = true;
-    new_Power = 0b10;
     return true;
 }
 
