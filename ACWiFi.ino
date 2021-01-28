@@ -13,9 +13,9 @@
 #include "html.h"
 #include "MHI-AC-Ctrl.h"
 
-#define SCK 14
-#define MOSI 13
-#define MISO 12
+#define SCK 14 // Rob = 14, Dan = 13
+#define MOSI 13 // Rob = 13, Dan = 14
+#define MISO 12 // Rob = 12, Dan = 12
 
 boolean firstruntemp = true;
 float temptrim = 6.2;
@@ -32,7 +32,6 @@ IPAddress subnet(255,255,255,0);
 
 #define ONE_WIRE_BUS 4          // D2, PIN for connecting temperature sensor DS18x20 DQ pin
 #define TEMP_MEASURE_PERIOD 0.5  // period in seconds for temperature measurement with the external DS18x20 temperature sensor
-#define SCK_PIN 14
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -45,11 +44,7 @@ class MhiEventHandler : public CallbackInterface
 {
 public:
     bool cbiMhiEventHandlerFunction(const char* key, const char* value) {
-      //Response_P(PSTR("%s"), value);
-      //MqttPublishPrefixTopic_P(TELE, key);
       Serial.println(String("Key: ")+key+String(" Value: ")+value);
-      //Serial.println(value);
-      //Serial.println(key);
     }
 };
 
@@ -269,7 +264,7 @@ char passphrasechar;
       Serial.println("New SSID: " + newssid);
       Serial.println("New PASS: " + newpass);
       Serial.println("*******************************");
-      Serial.println("Restarting system in 5 seconds!");
+      Serial.println("      Restarting system!!      ");
       Serial.println("*******************************");
       ESP.restart();
     }
@@ -298,7 +293,7 @@ void loop()
   if (now - espledtimestamp > 1000)
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    espledtimestamp = now;
+    espledtimestamp = now;    
   }
   mhiAc.loop();
 }
