@@ -39,70 +39,87 @@ def calc_checksum(frame):
     checksum = 0
     for i in range(0,CBH):
         checksum += frame[i]
-        i += 1
     return checksum
+
+def verify_checksum(frame):
+    sum = 0
+    for i in range(0,18):
+        sum += frame[i]
+
+    #print('LSB' + str((sum >> 8) & 0xfF) + ', ' + str(frame[18]))
+    #print('HSB' + str(sum & 0xfF) + ', ' + str(frame[19]))
+    return (frame[18] == ((sum >> 8) & 0xfF) and frame[19] == (sum & 0xFF))
+
+def mosi_sig_sync():
+    sig = bytes([0x6d, 0x80, 0x04])
+    readbuffer = bytearray(3)
+
+    # wait for 200us high clock to detect a frame start
+    sckus = time.ticks_us()
+    while True:
+        if not sckpin.value():
+            while not sckpin.value():  # wait for clock rising edge
+                pass
+            sckus = time.ticks_us()
+        if time.ticks_diff(time.ticks_us(), sckus) > 200:
+            break
+    while True:
+        MOSI_byte = 0
+        bit_mask = 1
+        for bit_cnt in range(0, 8):
+            while sckpin.value():  # wait for clock falling edge
+                pass  # insert write code here later ...
+            while not sckpin.value():  # wait for clock rising edge
+                pass
+            # time stamp rising edge
+            if mosipin.value():
+                MOSI_byte += bit_mask
+            bit_mask = bit_mask << 1
+        readbuffer[2] = readbuffer[1]
+        readbuffer[1] = readbuffer[0]
+        readbuffer[0] = MOSI_byte
+        #print("".join("\\x%02x" % i for i in readbuffer))
+        #print("".join("\\x%02x" % i for i in sig))
+        #if sig[0] == readbuffer[0] and sig[1] == readbuffer[1] and sig[2] == readbuffer[2]:
+        if sig[0] == readbuffer[0]:
+            #print('synced')
+            return readbuffer
 
 def payload():
     global doubleframe, frame, erropdataCnt, MISO_frame
     payload = bytearray(20)
+    sig = mosi_sig_sync()
+    payload[0] = sig[0]
+    payload[1] = sig[1]
+    payload[2] = sig[2]
 
+    # wait for 200us high clock to detect a frame start
+    sckus = time.ticks_us()
+    while True:
+        if not sckpin.value():
+            while not sckpin.value():  # wait for clock rising edge
+                pass
+            sckus = time.ticks_us()
+        if time.ticks_diff(time.ticks_us(), sckus) > 200:
+            break
 
-
-    # wait for 5ms high clock to detect a frame start
-    sckmillis = time.ticks_ms()
-    while (time.ticks_ms() - sckmillis < 5):
-        if not sckpin:
-            sckmillis = time.ticks_ms()
-
-    # build the next MISO frame
-    frame += 1
-    if frame >= 20:
-        doubleframe = not doubleframe
-        MISO_frame[DB14] == doubleframe << 2
-        frame = 1
-        if doubleframe:
-            MISO_frame[DB0] = 0x00
-            MISO_frame[DB1] = 0x00
-            MISO_frame[DB2]  = 0x00
-            if erropdataCnt == 0:
-                MISO_frame[DB6] = 0x80
-                MISO_frame[DB9] = 0xff
-                erropdataCnt = erropdataCnt - 1
-                
-        # Set Power, Mode, Testpoint, Fan, Vanes
-        # TODO - Create vars for all parameters
-        MISO_frame[DB0] = 0b00      # POWER
-        MISO_frame[DB0] |= 0b00     # MODE
-        MISO_frame[DB2] = 0b00      # Testpoint
-        MISO_frame[DB1] = 0b00      # Fan1
-        MISO_frame[DB6] |= 0b00     # Fan6
-        MISO_frame[DB0] |= 0b00     # Vanes0
-        MISO_frame[DB1] |= 0b00     # Vanes1
-
-    checksum = calc_checksum(MISO_frame)
-    MISO_frame[CBH] = checksum >> 8
-    MISO_frame[CBL] = checksum & 0xFF
-
-    for byte_cnt in range(0, 20):  # change to range(0,20) for deployment
+    for byte_cnt in range(3, 20):  # change to range(0,20) for deployment
         MOSI_byte = 0
-        bit = 0
+        bit_mask = 1
         for bit_cnt in range(0, 8):
             while sckpin.value():  # wait for clock falling edge
                 pass  # insert write code here later ...
-            if MISO_frame[byte_cnt] & bit > 0:
-                misopin.on()
-            else:
-                misopin.off()
             while not sckpin.value():  # wait for clock rising edge
                 pass
+            # time stamp rising edge
             if mosipin.value():
-                bit = 1
-            else:
-                bit = 0
-            MOSI_byte = (MOSI_byte << 1) | bit
+                MOSI_byte += bit_mask
+            bit_mask = bit_mask << 1
         payload[byte_cnt] = MOSI_byte
-    #print(payload)
+
     print("".join("\\x%02x" % i for i in payload))
+    if verify_checksum(payload):
+        print('Payload CSC Verified!')
 
 def main():
     while 1:
