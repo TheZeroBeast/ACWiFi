@@ -6,6 +6,7 @@ byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
 bool checksumError = false;
+bool newPayloadReceived = false;
 
 byte newMode     = 0;
 byte newVanes    = 0;
@@ -84,6 +85,8 @@ void setup() {
   pinMode(SCK_PIN, INPUT);
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
+
+  newMode = 3; // Test, ON to previous mode
 }
 
 void exchange_payloads()
@@ -141,6 +144,11 @@ void exchange_payloads()
 
       update_checksum();                                                                                   //Recalculate checksum of tx_SPIframe
 
+      /*for (uint8_t i = 0; i < 20; i++) {
+        Serial.printf("%.2X ", miso_frame[i]);
+      }
+      Serial.println();*/
+
       //Reset all state changes
       newMode     = 0;
       newVanes    = 0;
@@ -162,7 +170,6 @@ void exchange_payloads()
 
   // read/write MOSI/MISO frame
   for (uint8_t byte_cnt = 0; byte_cnt < 20; byte_cnt++) { // read and write a data packet of 20 bytes
-    //Serial.printf("x%02x ", MISO_frame[byte_cnt]);
     byte MOSI_byte = 0;
     byte bit_mask = 1;
     for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
@@ -177,14 +184,22 @@ void exchange_payloads()
       bit_mask = bit_mask << 1;
     }
     if (mosi_frame[byte_cnt] != MOSI_byte) {
+      newPayloadReceived = true;
       mosi_frame[byte_cnt] = MOSI_byte;
     }
   }
-  for (uint8_t i = 0; i < 20; i++) {
-    Serial.printf("%.2X ", mosi_frame[i]);
+  if (newPayloadReceived)
+  {
+    for (uint8_t i = 0; i < 20; i++) {
+      Serial.printf("%.2X ", mosi_frame[i]);
+    }
+    if (verify_checksum()) Serial.printf(" Verfied checksum.");
+    Serial.println();
+    float roomtemp = (mosi_frame[6] - 61) / 4;
+    Serial.printf("%.2f", roomtemp);
+    Serial.println();
+    newPayloadReceived = false;
   }
-  if (verify_checksum()) Serial.printf(" Verfied checksum.");
-  Serial.println();
 }
 
 void loop() {
