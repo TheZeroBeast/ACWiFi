@@ -5,10 +5,10 @@ freq(160000000)
 lvlshiften = Pin(16, Pin.OUT)
 lvlshiften.on()
 
-mosipin = Pin(13, Pin.IN, Pin.PULL_UP)
+mosipin = Pin(13, Pin.IN)
 misopin = Pin(12, Pin.OUT)
 misopin.value(1)
-sckpin = Pin(14, Pin.IN, Pin.PULL_UP)
+sckpin = Pin(14, Pin.IN)
 
 variant_no = 0                                      # Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 frame_no = 1                                        # Counter for how many times a frame variation has been sent (max. = 48)
@@ -89,71 +89,9 @@ def update_miso_frame_variant():
 def exchange_payloads():
     global doubleframe, frame, erropdataCnt, miso_frame, mosi_frame
     global state, frame_no, checksum_error, mosi_bitfield4_10
-    global  newMode, newVanes, newFanspeed, newSetpoint
+    global newMode, newVanes, newFanspeed, newSetpoint
 
-    if frame_no == 2:
-        if verify_checksum():
-            if variant_no == 1:
-                pass
-            checksum_error = False
-        else:
-            if checksum_error:
-                pass # If true then the previous checksum at frame 47 was also wrong -> SPI sync lost? -> resync
-            checksum_error = True
-    elif frame_no == 24:
-        miso_frame[17] = miso_frame[17] & 0b11111011
-        update_checksum()
-    elif frame_no == 47:
-        if verify_checksum():
-            for i in range(3, 10):
-                mosi_bitfield4_10[i-3] = mosi_frame[i]
-        else:
-            if checksum_error:
-                pass  # If true then the previous checksum at frame 47 was also wrong -> SPI sync lost? -> resync
-            checksum_error = True
-    elif frame_no == 48:
-        frame_no = 0
-        update_miso_frame_variant()
-
-        # ****************** CONSTRUCTION OF UPDATED BIT FIELDS *******************
-        # Set 'state change' bits and 'write' bits if MQTT update received from ESP
-        # otherwise only clear 'write' bits using masks from the xxxMask[0][] arrays
-        # Bitfields 4, 5, 6, 10 are based on the last received MHI values(frame 47)
-        miso_frame[3] = mosi_bitfield4_10[0] & ~mode_mask[newMode][0]               # Clear mode bits (bitfield 4)
-        miso_frame[3] |= mode_mask[newMode][1]                                      # Set mode bits
-
-        miso_frame[3] &= ~vanes_mask[newVanes][0]                                   # Clear vanes bits (bitfield 4)
-        miso_frame[3] |= ~vanes_mask[newVanes][1]                                   # Set vanes bits
-
-        miso_frame[4] = mosi_bitfield4_10[1] & ~vanes_mask[newVanes][2]             # Clear vanes bits (bitfield 5)
-        miso_frame[4] |= vanes_mask[newVanes][3]                                    # Set vanes bits
-
-        miso_frame[4] &= fanspeed_mask[newFanspeed][0]                              # Clear fanspeed bits (bitfield 5)
-        miso_frame[4] |= fanspeed_mask[newFanspeed][1]                              # Set fanspeed bits
-
-        if mosi_bitfield4_10[6] & 0b01000000:
-            mosi_bitfield4_10[6] |= 0b00000001
-        else:                                                                       # Copy bit 7 from rx_SPIframe[9] to bit 1 as the status bits for fan speed 4 appear to be swapped (!?) between MISO and MOSI
-            mosi_bitfield4_10[6] &= 0b11111110
-        miso_frame[9] &= ~0b00111111                                                # Clear bits 1-6 and keep variant bits 7-8
-
-        miso_frame[9] |= (mosi_bitfield4_10[6] & ~fanspeed_mask[newFanspeed][2])
-        miso_frame[9] |= fanspeed_mask[newFanspeed][3]                              # Set fanspeed bits
-
-        # Construct setpoint bitfield (#6) from last MHI value or user update
-        if newSetpoint == 0:
-            miso_frame[5] = mosi_bitfield4_10[2] & ~0b10000000                      # Copy last received MHI setpoint and clear the write bit
-        else:
-            miso_frame[5] = (newSetpoint << 1) | 0b10000000                         # Updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
-        update_checksum()
-
-        # Reset all state changes
-        newMode     = 0
-        newVanes    = 0
-        newFanspeed = 0
-        newSetpoint = 0
-
-    # wait for 5s high clock to detect a frame start
+    # wait for 5ms high clock to detect a frame start
     sckus = time.ticks_us()
     while True:
         if not sckpin.value():
@@ -162,33 +100,40 @@ def exchange_payloads():
             sckus = time.ticks_us()
         if time.ticks_diff(time.ticks_us(), sckus) > 5000:
             break
-
+    sckus = time.ticks_us()
     for byte_cnt in range(0, 20):  # change to range(0,20) for deployment
         MOSI_byte = 0
-        bit_mask = 1
+        bit_mask = 0b10000000
         for bit_cnt in range(0, 8):
             while sckpin.value():  # wait for clock falling edge
                 pass  # insert write code here later ...
-            if miso_frame[byte_cnt] & bit_mask:
-                misopin.on()
-            else:
-                misopin.off()
+            #if miso_frame[byte_cnt] & bit_mask:
+            #    misopin.on()
+            #else:
+            #    misopin.off()
             while not sckpin.value():  # wait for clock rising edge
                 pass
             # time stamp rising edge
             if mosipin.value():
                 MOSI_byte += bit_mask
-            bit_mask = bit_mask << 1
+            bit_mask = bit_mask >> 1
         mosi_frame[byte_cnt] = MOSI_byte
 
-    print("".join("\\x%02x" % i for i in mosi_frame))
+    print("".join("\\x%02x" % i for i in mosi_frame) + ' Frame time(us):' + str(time.ticks_diff(time.ticks_us(), sckus)))
     if verify_checksum():
         print('Payload CSC Verified!')
     frame_no += 1
 
 def main():
     while 1:
-        exchange_payloads()
+        # exchange_payloads()
+        while sckpin.value():  # wait for clock falling edge
+            pass
+        stamp = time.ticks_us()
+        while not sckpin.value():  # wait for clock rising edge
+            pass
+        stamp2 = time.ticks_us()
+        print(str(time.ticks_diff(stamp2, stamp)))
 
 if __name__== "__main__":
     main()
