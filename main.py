@@ -181,8 +181,7 @@ def exchange_payloads():
             bit_mask = bit_mask << 1
         mosi_frame[byte_cnt] = MOSI_byte
 
-    if mosi_frame[1] == mosi_frame_sig[1]:
-        print("".join("\\x%02x" % i for i in mosi_frame))
+    print("".join("\\x%02x" % i for i in mosi_frame))
     if verify_checksum():
         print('Payload CSC Verified!')
     frame_no += 1
