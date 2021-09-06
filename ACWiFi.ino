@@ -16,7 +16,7 @@ byte newSetpoint = 0;
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
 // Bitfield:             1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20
-byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x4C, 0x00, 0x2A, 0xFF, 0x00, 0x00, 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04, 0x05, 0xF5};
+byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x48, 0x02, 0x30, 0x98, 0x00, 0x00, 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04, 0x05, 0xF5};
 
 byte mosi_frame[20]; // Array to collect a single frame of SPI data received from the MHI unit
 
@@ -74,19 +74,8 @@ bool verify_checksum()
 
 void update_miso_frame_variant()
 {
-  if (frame_no++ == 3) frame_no = 0;
-  for (int bf = 10; bf < 19; bf++) miso_frame[bf] = frameVariant[frame_no][bf-10];
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(16, OUTPUT); // turn on level shifter
-  digitalWrite(16, 1); // turn on level shifter
-  pinMode(SCK_PIN, INPUT);
-  pinMode(MOSI_PIN, INPUT);
-  pinMode(MISO_PIN, OUTPUT);
-
-  newMode = 3; // Test, ON to previous mode
+  if (variant_no++ == 3) variant_no = 0;
+  memcpy(&miso_frame[9], &frameVariant[variant_no][0], 9);
 }
 
 void exchange_payloads()
@@ -159,6 +148,11 @@ void exchange_payloads()
     default:
       break;
   }
+  for (uint8_t i = 0; i < 20; i++) {
+    Serial.printf("%.2X ", miso_frame[i]);
+  }
+  Serial.print(frame_no);
+  Serial.println();
   frame_no++;
 
   int startMillis = millis();             // start time of this loop run
@@ -174,7 +168,7 @@ void exchange_payloads()
     byte bit_mask = 1;
     for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
       while (digitalRead(SCK_PIN)) {} // wait for falling edge
-      if ((miso_frame[byte_cnt] & bit_mask) > 0)
+      if (miso_frame[byte_cnt] & bit_mask)
         digitalWrite(MISO_PIN, 1);
       else
         digitalWrite(MISO_PIN, 0);
@@ -188,18 +182,28 @@ void exchange_payloads()
       mosi_frame[byte_cnt] = MOSI_byte;
     }
   }
-  if (newPayloadReceived)
-  {
+  //if (newPayloadReceived)
+  //{
     for (uint8_t i = 0; i < 20; i++) {
       Serial.printf("%.2X ", mosi_frame[i]);
     }
     if (verify_checksum()) Serial.printf(" Verfied checksum.");
-    Serial.println();
     float roomtemp = (mosi_frame[6] - 61) / 4;
-    Serial.printf("%.2f", roomtemp);
+    Serial.printf(" Room Temp:%.2f", roomtemp);
     Serial.println();
     newPayloadReceived = false;
-  }
+  //}
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(16, OUTPUT); // turn on level shifter
+  digitalWrite(16, 1); // turn on level shifter
+  pinMode(SCK_PIN, INPUT);
+  pinMode(MOSI_PIN, INPUT);
+  pinMode(MISO_PIN, OUTPUT);
+
+  newMode = 7; // Test, ON to previous mode
 }
 
 void loop() {
