@@ -12,11 +12,13 @@ byte newMode     = 0;
 byte newVanes    = 0;
 byte newFanspeed = 0;
 byte newSetpoint = 0;
+
+  int cmdTimeStamp = millis();
  
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
 // Bitfield:             1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20
-byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x48, 0x02, 0x30, 0x98, 0x00, 0x00, 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04, 0x05, 0xF5};
+byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x4C, 0x00, 0x2A, 0xFF, 0x00, 0x00, 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04, 0x05, 0xF5};
 
 byte mosi_frame[20]; // Array to collect a single frame of SPI data received from the MHI unit
 
@@ -37,7 +39,7 @@ const byte modeMask[8][2]      { //     CLEAR   |    SET
                                    { 0b00111111, 0b00100011 },  //4 = AUTO
                                    { 0b00111111, 0b00100111 },  //5 = DRY
                                    { 0b00111111, 0b00101111 },  //6 = FAN
-                                   { 0b00100011, 0b00000011 }};   //7 = ON (using last mode)
+                                   { 0b00100011, 0b00000011 }}; //7 = ON (using last mode)
 
 //VANES bitmasks                          Bitfield #4             Bitfield #5
 const byte vanesMask[6][4]     { //     CLEAR   |    SET        CLEAR   |    SET
@@ -46,7 +48,7 @@ const byte vanesMask[6][4]     { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b11000000, 0b10000000, 0b10110000, 0b10010000 },  //2 = 2
                                    { 0b11000000, 0b10000000, 0b10110000, 0b10100000 },  //3 = 3
                                    { 0b11000000, 0b10000000, 0b10110000, 0b10110000 },  //4 = 4 (down)
-                                   { 0b11000000, 0b11000000, 0b10000000, 0b00000000 }};   //5 = swing
+                                   { 0b11000000, 0b11000000, 0b10000000, 0b00000000 }}; //5 = swing
 
 //FANSPEED bitmasks                        Bitfield #5             Bitfield #10
 const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
@@ -68,14 +70,7 @@ bool verify_checksum()
 {
   uint16_t sum = 0;
   for (int bf = 0; bf < 18; bf++) sum += mosi_frame[bf];
-  //Serial.printf("Mosi18:%i, HB:%i, Mosi19:%i, LB:%i", mosi_frame[18], highByte(sum), mosi_frame[19], lowByte(sum));
-  return (mosi_frame[18] == highByte(sum) && mosi_frame[19] == lowByte(sum));                                    //Calculate MSB and LSB of checksum and compare with byte 19 and 20. Returns true if checksum is correct.
-}
-
-void update_miso_frame_variant()
-{
-  if (variant_no++ == 3) variant_no = 0;
-  memcpy(&miso_frame[9], &frameVariant[variant_no][0], 9);
+  return (mosi_frame[18] == highByte(sum) && mosi_frame[19] == lowByte(sum));                             //Calculate MSB and LSB of checksum and compare with byte 19 and 20. Returns true if checksum is correct.
 }
 
 void exchange_payloads()
@@ -103,7 +98,17 @@ void exchange_payloads()
 
     case 48:                                                                                               //<FRAME 48> Current frame variation has been send 48 times -> construct next frame variant using most recent bit fields 4-10 collected in frame 47
       frame_no = 0;   
-      update_miso_frame_variant();
+      if (++variant_no > 2) variant_no = 0;
+      memcpy(&miso_frame[9], &frameVariant[variant_no][0], 9);
+      /*Serial.printf("VarNo:%i . ", variant_no);
+      Serial.print("Miso:");
+      for (uint8_t i = 9; i <18; i++)
+        Serial.printf("%.2X ", miso_frame[i]);
+      Serial.println();
+      Serial.print("  FrameVariant:");
+      for (uint8_t i = 0; i <9; i++)
+        Serial.printf("%.2X ", frameVariant[variant_no][i]);
+      Serial.println();*/
       
       //******************* CONSTRUCTION OF UPDATED BIT FIELDS *******************
       //Set 'state change' bits and 'write' bits if MQTT update received from ESP
@@ -133,11 +138,6 @@ void exchange_payloads()
 
       update_checksum();                                                                                   //Recalculate checksum of tx_SPIframe
 
-      /*for (uint8_t i = 0; i < 20; i++) {
-        Serial.printf("%.2X ", miso_frame[i]);
-      }
-      Serial.println();*/
-
       //Reset all state changes
       newMode     = 0;
       newVanes    = 0;
@@ -148,11 +148,11 @@ void exchange_payloads()
     default:
       break;
   }
-  for (uint8_t i = 0; i < 20; i++) {
+  /*for (uint8_t i = 0; i < 20; i++) {
     Serial.printf("%.2X ", miso_frame[i]);
   }
   Serial.print(frame_no);
-  Serial.println();
+  Serial.println();*/
   frame_no++;
 
   int startMillis = millis();             // start time of this loop run
@@ -168,7 +168,7 @@ void exchange_payloads()
     byte bit_mask = 1;
     for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
       while (digitalRead(SCK_PIN)) {} // wait for falling edge
-      if (miso_frame[byte_cnt] & bit_mask)
+      if ((miso_frame[byte_cnt] & bit_mask) > 0)
         digitalWrite(MISO_PIN, 1);
       else
         digitalWrite(MISO_PIN, 0);
@@ -185,12 +185,13 @@ void exchange_payloads()
   //if (newPayloadReceived)
   //{
     for (uint8_t i = 0; i < 20; i++) {
-      Serial.printf("%.2X ", mosi_frame[i]);
+      Serial.printf("%.2x/%.2x ", mosi_frame[i], miso_frame[i]);
     }
-    if (verify_checksum()) Serial.printf(" Verfied checksum.");
+    //if (verify_checksum() and !checksumError) Serial.printf(" Verfied checksum.");
     float roomtemp = (mosi_frame[6] - 61) / 4;
     Serial.printf(" Room Temp:%.2f", roomtemp);
     Serial.println();
+    
     newPayloadReceived = false;
   //}
 }
@@ -203,9 +204,18 @@ void setup() {
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
 
-  newMode = 7; // Test, ON to previous mode
+  cmdTimeStamp = millis();             // start time of this loop run
 }
 
 void loop() {
   exchange_payloads();
+
+  if (millis() - cmdTimeStamp > 5000)
+  {
+      // cmdTimeStamp = millis();
+      newMode     = 0;
+      newVanes    = 0;
+      newFanspeed = 0;
+      newSetpoint = 0;
+  }
 }
