@@ -10,14 +10,15 @@
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-" + String(ESP.getChipId());
 
-// WiFi credentials
+// WiFiclient and WiFi credentials
+WiFiClient wifiClient;
 const char* wifissid = "your-ssid-goes-here";
 const char* wifipassword = "your-password-goes-here";
 
 // HTTPClient and domoticz server ip and port definitions
 HTTPClient http;
-const char* domoticzip = "192.168.0.200";
-const int   domoticzport = 8080;
+String domoticzip = "192.168.0.200";
+String domoticzport = "8080";
 
 byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
@@ -230,10 +231,11 @@ void initOTA() {
 
 void sendToDomoticz(String url){
   Serial.print("connecting to ");
-  Serial.println(domoticzip);
+  Serial.println(domoticzip);  
   Serial.print("Requesting URL: ");
   Serial.println(url);
-  http.begin(domoticzip,domoticzport,url);
+  //http.begin(domoticzip,domoticzport,url);
+  http.begin(wifiClient, "http://" + domoticzip + ":" + domoticzport + url);
   int httpCode = http.GET();
     if (httpCode) {
       if (httpCode == 200) {
