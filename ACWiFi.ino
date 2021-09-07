@@ -18,7 +18,7 @@ byte newSetpoint = 0;
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
 // Bitfield:             1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20
-byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x4C, 0x00, 0x2A, 0xFF, 0x00, 0x00, 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04, 0x05, 0xF5};
+byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00};
 
 byte mosi_frame[20]; // Array to collect a single frame of SPI data received from the MHI unit
 
@@ -77,38 +77,20 @@ void exchange_payloads()
 {
   switch (frame_no)
   {
-    case 2:                                                                                                //<FRAME 2> Verify checksum on SPI frame that was just received and send to ESP8266 if correct
-      if (verify_checksum()) checksumError = false;
-      else checksumError = true;
-      break;                                                                                               //Start from beginning of loop() and wait for next complete SPI frame
-
-    case 24:                                                                                               //<FRAME 24> Current frame variation has been sent 24 times -> clear clock bit in bit field 18 for the next 24 frames
+    case 0:
       bitClear(miso_frame[17], 2);                                                                        //Clear clock bit 3 in bitfield 18-> update checksum and resend for 24 cycles
-      update_checksum();                                                                                   //Recalculate checksum of tx_SPIframe
-      break;                                                                                               //Start from beginning of loop() and wait for next complete SPI frame
-
-    case 47:                                                                                               //<FRAME 47> Collect the most recent bit fields 4-10 for constructing an updated tx_SPIframe after the upcoming frame (48)
+      frame_no++;
+      break;
+    
+    case 1:                                                                                               //<FRAME 24> Current frame variation has been sent 24 times -> clear clock bit in bit field 18 for the next 24 frames
+      bitSet(miso_frame[17], 2);                                                                          //Clear clock bit 3 in bitfield 18-> update checksum and resend for 24 cycles
       if (verify_checksum())                                                                               //Verify checksum
       {
         memcpy(&mosi_bitfield4_10, &mosi_frame[3], 7);                                                    //Get bitfields 4-10 from the last MHI SPI frame to use for the upcoming tx_SPIframe update
         checksumError = false;
       }
-      else checksumError = true;
-      break;
-
-    case 48:                                                                                               //<FRAME 48> Current frame variation has been send 48 times -> construct next frame variant using most recent bit fields 4-10 collected in frame 47
-      frame_no = 0;   
-      if (++variant_no > 2) variant_no = 0;
-      memcpy(&miso_frame[9], &frameVariant[variant_no][0], 9);
-      /*Serial.printf("VarNo:%i . ", variant_no);
-      Serial.print("Miso:");
-      for (uint8_t i = 9; i <18; i++)
-        Serial.printf("%.2X ", miso_frame[i]);
-      Serial.println();
-      Serial.print("  FrameVariant:");
-      for (uint8_t i = 0; i <9; i++)
-        Serial.printf("%.2X ", frameVariant[variant_no][i]);
-      Serial.println();*/
+      else checksumError = true;                                                                                             //<FRAME 48> Current frame variation has been send 48 times -> construct next frame variant using most recent bit fields 4-10 collected in frame 47
+      frame_no = 0;
       
       //******************* CONSTRUCTION OF UPDATED BIT FIELDS *******************
       //Set 'state change' bits and 'write' bits if MQTT update received from ESP
@@ -136,24 +118,14 @@ void exchange_payloads()
       if (newSetpoint == 0) miso_frame[5] = mosi_bitfield4_10[2] & ~0b10000000;                           //Copy last received MHI setpoint and clear the write bit
       else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                              //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
 
-      update_checksum();                                                                                   //Recalculate checksum of tx_SPIframe
-
       //Reset all state changes
       newMode     = 0;
       newVanes    = 0;
       newFanspeed = 0;
       newSetpoint = 0;
-      break;                                                                                               //Start from beginning of loop() and wait for next complete SPI frame.
-
-    default:
       break;
   }
-  /*for (uint8_t i = 0; i < 20; i++) {
-    Serial.printf("%.2X ", miso_frame[i]);
-  }
-  Serial.print(frame_no);
-  Serial.println();*/
-  frame_no++;
+  update_checksum();                                                                                       //<FRAME 47> Collect the most recent bit fields 4-10 for constructing an updated tx_SPIframe after the upcoming frame (48)
 
   int startMillis = millis();             // start time of this loop run
   int SCKMillis = millis();               // time of last SCK low level
@@ -213,7 +185,7 @@ void loop() {
   if (millis() - cmdTimeStamp > 5000)
   {
       // cmdTimeStamp = millis();
-      newMode     = 0;
+      newMode     = 7;
       newVanes    = 0;
       newFanspeed = 0;
       newSetpoint = 0;
