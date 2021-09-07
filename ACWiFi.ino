@@ -1,6 +1,23 @@
+#include <ArduinoOTA.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+
+// IO pin definitions
 #define SCK_PIN  14
 #define MOSI_PIN 13
 #define MISO_PIN 12
+
+// set devicename, used for ArduinoOTA
+String devicename = "ACWiFi-" + String(ESP.getChipId());
+
+// WiFi credentials
+const char* wifissid = "your-ssid-goes-here";
+const char* wifipassword = "your-password-goes-here";
+
+// HTTPClient and domoticz server ip and port definitions
+HTTPClient http;
+const char* domoticzip = "192.168.0.200";
+const int   domoticzport = 8080;
 
 byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
@@ -175,12 +192,69 @@ void setup() {
   pinMode(SCK_PIN, INPUT);
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
-
+  initWiFi();
+  initOTA();
   cmdTimeStamp = millis();             // start time of this loop run
 }
 
+void initWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifissid, wifipassword);
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+  Serial.println(WiFi.localIP());
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+}
+
+void initOTA() {
+  ArduinoOTA.setHostname(devicename.c_str());
+
+  ArduinoOTA.onStart([]() {
+    digitalWrite(LED_BUILTIN, LOW);
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  });
+  ArduinoOTA.onEnd([]() {
+    digitalWrite(LED_BUILTIN, HIGH);
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    digitalWrite(LED_BUILTIN, HIGH);
+  });
+  ArduinoOTA.begin();
+}
+
+void sendToDomoticz(String url){
+  Serial.print("connecting to ");
+  Serial.println(domoticzip);
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+  http.begin(domoticzip,domoticzport,url);
+  int httpCode = http.GET();
+    if (httpCode) {
+      if (httpCode == 200) {
+        String payload = http.getString();
+        Serial.println("Domoticz response "); 
+        Serial.println(payload);
+      }
+    }
+  Serial.println("closing connection");
+  http.end();
+}
+
 void loop() {
+  ArduinoOTA.handle();
   exchange_payloads();
+
+  // uncomment the sendToDomoticz lines below to update domoticz values, ensure IDX is correct and value is the data being send.
+  if (newPayloadReceived)
+  {
+    //sendToDomoticz("/json.htm?type=command&param=udevice&idx=1&nvalue=0&svalue=" + String(value) + ";");
+  }
 
   if (millis() - cmdTimeStamp > 5000)
   {
