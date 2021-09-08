@@ -1,6 +1,5 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
 
 // IO pin definitions
 #define SCK_PIN  14
@@ -12,13 +11,8 @@ String devicename = "ACWiFi-" + String(ESP.getChipId());
 
 // WiFiclient and WiFi credentials
 WiFiClient wifiClient;
-const char* wifissid = "your-ssid-goes-here";
-const char* wifipassword = "your-password-goes-here";
-
-// HTTPClient and domoticz server ip and port definitions
-HTTPClient http;
-String domoticzip = "192.168.0.200";
-String domoticzport = "8080";
+const char* wifissid = "Go Away";
+const char* wifipassword = "away1234";
 
 byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
@@ -93,6 +87,7 @@ bool verify_checksum()
 
 void exchange_payloads()
 {
+  bool sync = false;
   switch (frame_no)
   {
     case 0:
@@ -145,11 +140,11 @@ void exchange_payloads()
   }
   update_checksum();                                                                                       //<FRAME 47> Collect the most recent bit fields 4-10 for constructing an updated tx_SPIframe after the upcoming frame (48)
 
-  int startMillis = millis();             // start time of this loop run
+  int checkSCKMillis = millis();
   int SCKMillis = millis();               // time of last SCK low level
   while (millis() - SCKMillis < 5) { // wait for 5ms stable high signal to detect a frame start
-    if (!digitalRead(SCK_PIN))
-      SCKMillis = millis();
+    if (millis() - checkSCKMillis > 100) return; // check for clk signal, if none, allow code to run without causing WDT reset loop - mainly for dev purposes
+    if (!digitalRead(SCK_PIN)) SCKMillis = millis();
   }
 
   // read/write MOSI/MISO frame
@@ -229,41 +224,12 @@ void initOTA() {
   ArduinoOTA.begin();
 }
 
-void sendToDomoticz(String url){
-  Serial.print("connecting to ");
-  Serial.println(domoticzip);  
-  Serial.print("Requesting URL: ");
-  Serial.println(url);
-  //http.begin(domoticzip,domoticzport,url);
-  http.begin(wifiClient, "http://" + domoticzip + ":" + domoticzport + url);
-  int httpCode = http.GET();
-    if (httpCode) {
-      if (httpCode == 200) {
-        String payload = http.getString();
-        Serial.println("Domoticz response "); 
-        Serial.println(payload);
-      }
-    }
-  Serial.println("closing connection");
-  http.end();
-}
-
 void loop() {
   ArduinoOTA.handle();
   exchange_payloads();
-
-  // uncomment the sendToDomoticz lines below to update domoticz values, ensure IDX is correct and value is the data being send.
+  yield();
   if (newPayloadReceived)
   {
-    //sendToDomoticz("/json.htm?type=command&param=udevice&idx=1&nvalue=0&svalue=" + String(value) + ";");
-  }
-
-  if (millis() - cmdTimeStamp > 5000)
-  {
-      // cmdTimeStamp = millis();
-      newMode     = 7;
-      newVanes    = 0;
-      newFanspeed = 0;
-      newSetpoint = 0;
+    //
   }
 }
