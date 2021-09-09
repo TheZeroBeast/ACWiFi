@@ -19,14 +19,14 @@ char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-int starttime;
+int starttime = 0;
 
 // Domoticz IDX List
 const int idxroomtemp = 162;
 
 // WiFi credentials
-const char* wifissid = "Go Away";
-const char* wifipassword = "away1234";
+const char* wifissid = "McKWiFi24GHz";
+const char* wifipassword = "AlfieZephyr";
 
 byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
@@ -88,10 +88,8 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) 
-  {
+  for (int i = 0; i < length; i++)
     Serial.print((char)payload[i]);
-  }
   Serial.println();
 }
 
@@ -104,9 +102,7 @@ void reconnect()
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
     if (client.connect("NodeMCUClient")) 
-    {
       Serial.println("connected");
-    } 
     else 
     {
       Serial.print("failed, rc=");
@@ -215,18 +211,15 @@ void exchange_payloads()
       mosi_frame[byte_cnt] = MOSI_byte;
     }
   }
-  //if (newPayloadReceived)
-  //{
-    for (uint8_t i = 0; i < 20; i++) {
+  if (newPayloadReceived)
+  {
+    for (uint8_t i = 0; i < 20; i++)
       Serial.printf("%.2x/%.2x ", mosi_frame[i], miso_frame[i]);
-    }
-    //if (verify_checksum() and !checksumError) Serial.printf(" Verfied checksum.");
     float roomtemp = (mosi_frame[6] - 61) / 4;
     Serial.printf(" Room Temp:%.2f", roomtemp);
     Serial.println();
-    
     newPayloadReceived = false;
-  //}
+  }
 }
 
 void initWiFi() 
@@ -298,18 +291,19 @@ void loop()
     client.loop();
     if (millis() - starttime > 5000)
     {
+
+    }
+      
+    if (newPayloadReceived)
+    {
       float roomtemp = (mosi_frame[6] - 61) / 4;
       // create mqtt string
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // Debug message
-      Serial.println(mqttbuffer);
+      //Serial.println(mqttbuffer);
       starttime = millis();
-    }   
-    if (newPayloadReceived)
-    {
-      
     }
   }
   yield();
