@@ -9,8 +9,7 @@
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-" + String(ESP.getChipId());
 
-// WiFiclient and WiFi credentials
-WiFiClient wifiClient;
+// WiFi credentials
 const char* wifissid = "Go Away";
 const char* wifipassword = "away1234";
 
@@ -197,9 +196,12 @@ void initWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifissid, wifipassword);
   Serial.print("Connecting to WiFi ..");
+  int timeout = 30; // 30 second WiFi timeout
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(1000);
+    if (timeout == 0) return;
+    timeout--;
   }
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
@@ -207,21 +209,24 @@ void initWiFi() {
 }
 
 void initOTA() {
-  ArduinoOTA.setHostname(devicename.c_str());
-
-  ArduinoOTA.onStart([]() {
-    digitalWrite(LED_BUILTIN, LOW);
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-  });
-  ArduinoOTA.onEnd([]() {
-    digitalWrite(LED_BUILTIN, HIGH);
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    digitalWrite(LED_BUILTIN, HIGH);
-  });
-  ArduinoOTA.begin();
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    ArduinoOTA.setHostname(devicename.c_str());
+  
+    ArduinoOTA.onStart([]() {
+      digitalWrite(LED_BUILTIN, LOW);
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    });
+    ArduinoOTA.onEnd([]() {
+      digitalWrite(LED_BUILTIN, HIGH);
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+      digitalWrite(LED_BUILTIN, HIGH);
+    });
+    ArduinoOTA.begin();
+  }
 }
 
 void loop() {
