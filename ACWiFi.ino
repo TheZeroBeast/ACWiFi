@@ -302,6 +302,8 @@ void loop()
       // create mqtt string
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
+      // Debug message
+      Serial.println(mqttbuffer);
       starttime = millis();
     }   
     if (newPayloadReceived)
