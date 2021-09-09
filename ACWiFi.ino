@@ -302,7 +302,7 @@ void loop()
       // create mqtt string
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
-      client.publish(mqtt_topic, mqttbuffer);
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // Debug message
       Serial.println(mqttbuffer);
       starttime = millis();
