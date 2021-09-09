@@ -1,5 +1,6 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
+#include <PubSubClient.h>
 
 // IO pin definitions
 #define SCK_PIN  14
@@ -8,6 +9,18 @@
 
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-" + String(ESP.getChipId());
+
+// MQTT configuration and variables
+const char* mqtt_server = "192.168.0.200";
+const char* mqtt_username = "";
+const char* mqtt_password = "";
+const char* mqtt_domoticz_topic_in = "domoticz/in";
+char mqttbuffer[60];
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Domoticz IDX List
+const int idxroomtemp = 162;
 
 // WiFi credentials
 const char* wifissid = "Go Away";
@@ -24,8 +37,6 @@ byte newVanes    = 0;
 byte newFanspeed = 0;
 byte newSetpoint = 0;
 
-  int cmdTimeStamp = millis();
- 
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
 // Bitfield:             1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20
@@ -68,6 +79,42 @@ const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b00001111, 0b00001001, 0b11011000, 0b00000000 },  //2 = Speed 2
                                    { 0b00001111, 0b00001010, 0b11011000, 0b00000000 },  //3 = Speed 3
                                    { 0b00001111, 0b00001010, 0b11011000, 0b00010001 }}; //4 = Speed 4
+
+// Handle recieved MQTT message, just print it
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) 
+  {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
+// Reconnect to MQTT broker
+void reconnect() 
+{
+  // Loop until we're reconnected
+  while (!client.connected()) 
+  {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("NodeMCUClient")) 
+    {
+      Serial.println("connected");
+    } 
+    else 
+    {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
 
 void update_checksum()
 {
@@ -189,7 +236,9 @@ void setup() {
   pinMode(MISO_PIN, OUTPUT);
   initWiFi();
   initOTA();
-  cmdTimeStamp = millis();             // start time of this loop run
+  // Setup MQTT
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback); 
 }
 
 void initWiFi() {
@@ -233,8 +282,18 @@ void loop() {
   ArduinoOTA.handle();
   exchange_payloads();
   yield();
+  // Reconnect to MQTT broker if required
+  if (!client.connected()) {
+    reconnect();
+  }
+  // MQTT client loop
+  client.loop();
   if (newPayloadReceived)
   {
-    //
+    float roomtemp = (mosi_frame[6] - 61) / 4;
+    // create mqtt string
+    sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
   }
 }
