@@ -227,7 +227,8 @@ void exchange_payloads()
   //}
 }
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
   pinMode(16, OUTPUT); // turn on level shifter
   digitalWrite(16, 1); // turn on level shifter
@@ -241,7 +242,8 @@ void setup() {
   client.setCallback(callback); 
 }
 
-void initWiFi() {
+void initWiFi() 
+{
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifissid, wifipassword);
   Serial.print("Connecting to WiFi ..");
@@ -257,7 +259,8 @@ void initWiFi() {
   WiFi.persistent(true);
 }
 
-void initOTA() {
+void initOTA() 
+{
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.setHostname(devicename.c_str());
@@ -278,22 +281,26 @@ void initOTA() {
   }
 }
 
-void loop() {
-  ArduinoOTA.handle();
+void loop() 
+{
   exchange_payloads();
-  yield();
-  // Reconnect to MQTT broker if required
-  if (!client.connected()) {
-    reconnect();
-  }
-  // MQTT client loop
-  client.loop();
-  if (newPayloadReceived)
+  if (WiFi.status() == WL_CONNECTED)
   {
-    float roomtemp = (mosi_frame[6] - 61) / 4;
-    // create mqtt string
-    sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
-    // send data to the MQTT topic
-    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+    ArduinoOTA.handle();
+    // Reconnect to MQTT broker if required
+    if (!client.connected()) {
+      reconnect();
+    }
+    // MQTT client loop
+    client.loop();
+    if (newPayloadReceived)
+    {
+      float roomtemp = (mosi_frame[6] - 61) / 4;
+      // create mqtt string
+      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+    }
   }
+  yield();
 }
