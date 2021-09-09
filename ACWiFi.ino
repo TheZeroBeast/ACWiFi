@@ -19,6 +19,8 @@ char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+int starttime;
+
 // Domoticz IDX List
 const int idxroomtemp = 162;
 
@@ -240,6 +242,7 @@ void setup()
   // Setup MQTT
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback); 
+  starttime = millis();
 }
 
 void initWiFi() 
@@ -293,13 +296,17 @@ void loop()
     }
     // MQTT client loop
     client.loop();
-    if (newPayloadReceived)
+    if (millis() - starttime > 5000)
     {
       float roomtemp = (mosi_frame[6] - 61) / 4;
       // create mqtt string
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      starttime = millis();
+    }   
+    if (newPayloadReceived)
+    {
+      
     }
   }
   yield();
