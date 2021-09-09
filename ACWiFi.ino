@@ -11,7 +11,7 @@
 String devicename = "ACWiFi-" + String(ESP.getChipId());
 
 // MQTT configuration and variables
-const char* mqtt_server = "192.168.0.200";
+const char* mqtt_server = "192.168.1.200";
 const char* mqtt_username = "";
 const char* mqtt_password = "";
 const char* mqtt_domoticz_topic_in = "domoticz/in";
