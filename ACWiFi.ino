@@ -105,6 +105,8 @@ void callback(char* topic, byte* payload, unsigned int length)
     {
        Serial.println("parsing Domoticz/out JSON Received Message failed");
        return;
+       Serial.print(F("deserializeJson() failed with code "));
+       Serial.println(error.c_str());
     } 
     const char* idxChar = jsonBuffer["idx"];
     String idx = String(idxChar);
