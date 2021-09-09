@@ -229,22 +229,6 @@ void exchange_payloads()
   //}
 }
 
-void setup() 
-{
-  Serial.begin(115200);
-  pinMode(16, OUTPUT); // turn on level shifter
-  digitalWrite(16, 1); // turn on level shifter
-  pinMode(SCK_PIN, INPUT);
-  pinMode(MOSI_PIN, INPUT);
-  pinMode(MISO_PIN, OUTPUT);
-  initWiFi();
-  initOTA();
-  // Setup MQTT
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback); 
-  starttime = millis();
-}
-
 void initWiFi() 
 {
   WiFi.mode(WIFI_STA);
@@ -282,6 +266,22 @@ void initOTA()
     });
     ArduinoOTA.begin();
   }
+}
+
+void setup() 
+{
+  Serial.begin(115200);
+  pinMode(16, OUTPUT); // turn on level shifter
+  digitalWrite(16, 1); // turn on level shifter
+  pinMode(SCK_PIN, INPUT);
+  pinMode(MOSI_PIN, INPUT);
+  pinMode(MISO_PIN, OUTPUT);
+  initWiFi();
+  initOTA();
+  // Setup MQTT
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback); 
+  starttime = millis();
 }
 
 void loop() 
