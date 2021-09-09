@@ -1,6 +1,7 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 // IO pin definitions
 #define SCK_PIN  14
@@ -15,6 +16,7 @@ const char* mqtt_server = "192.168.1.200";
 const char* mqtt_username = "";
 const char* mqtt_password = "";
 const char* mqtt_domoticz_topic_in = "domoticz/in";
+const char* mqtt_domoticz_topic_out = "domoticz/out";
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -23,6 +25,7 @@ int starttime = 0;
 
 // Domoticz IDX List
 const int idxroomtemp = 162;
+const int idxmodeselector = 163;
 
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
@@ -85,12 +88,59 @@ const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
 // Handle recieved MQTT message, just print it
 void callback(char* topic, byte* payload, unsigned int length) 
 {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+  DynamicJsonDocument jsonBuffer( MQTT_MAX_PACKET_SIZE );
+  String messageReceived="";
+  //Serial.print("Message arrived [");
+  //Serial.print(topic);
+  //Serial.print("] ");
   for (int i = 0; i < length; i++)
-    Serial.print((char)payload[i]);
-  Serial.println();
+    //Serial.print((char)payload[i]);
+    messageReceived+=((char)payload[i]);
+  //Serial.println();
+
+  if ( strcmp(topic, mqtt_domoticz_topic_out) == 0 ) 
+  {      
+    DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
+    if (error)
+    {
+       Serial.println("parsing Domoticz/out JSON Received Message failed");
+       return;
+    } 
+    const char* idxChar = jsonBuffer["idx"];
+    String idx = String(idxChar);
+    if ( idx == String(idxmodeselector)) 
+    {
+       const char* command = jsonBuffer["svalue1"];
+       if( strcmp(command, "0") == 0 ) // "0" means we have to switch OFF the AC
+       { 
+        newMode = 1;  
+       }
+       if( strcmp(command, "20") == 0 ) // "20" means we have to switch ON the AC in HEAT mode
+       { 
+        newMode = 2;  
+       }
+       if( strcmp(command, "30") == 0 ) // "30" means we have to switch ON the AC in COOL mode
+       { 
+        newMode = 3; 
+       }
+       if( strcmp(command, "40") == 0 ) // "40" means we have to switch ON the AC in AUTO mode
+       { 
+        newMode = 4; 
+       }
+       if( strcmp(command, "50") == 0 ) // "50" means we have to switch ON the AC in DRY mode
+       { 
+        newMode = 5; 
+       }
+       if( strcmp(command, "60") == 0 ) // "60" means we have to switch ON the AC in FAN mode
+       { 
+        newMode = 6;  
+       }
+       if( strcmp(command, "10") == 0 ) // "10" means we have to switch ON the AC with the last mode used
+       { 
+        newMode = 7; 
+       }                   
+     } 
+  }
 }
 
 // Reconnect to MQTT broker
@@ -101,8 +151,13 @@ void reconnect()
   {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("NodeMCUClient")) 
-      Serial.println("connected");
+    if (client.connect("ACWiFi")) 
+    {
+      Serial.println("connected to MQTT broker!");
+      // suscribe to MQTT topics
+      Serial.print("Subscribe to domoticz/out topic. Status=");
+      if ( client.subscribe(mqtt_domoticz_topic_out, 0) ) Serial.println("OK"); else Serial.println("FAILED"); 
+    }
     else 
     {
       Serial.print("failed, rc=");
