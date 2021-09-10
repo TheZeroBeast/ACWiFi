@@ -19,19 +19,21 @@ const char* mqtt_domoticz_topic_in =           "domoticz/in";
 const char* mqtt_domoticz_topic_out_mode =     "domoticz/out/163";
 const char* mqtt_domoticz_topic_out_vane =     "domoticz/out/164";
 const char* mqtt_domoticz_topic_out_fanspeed = "domoticz/out/165";
-const char* mqtt_domoticz_topic_out_setpoint = "domoticz/out/166";
+const char* mqtt_domoticz_topic_out_setpoint = "domoticz/out/167";
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 int starttime = 0;
 
-// Domoticz IDX List
+// Domoticz IDX List - update the IDX values to suit your Domoticz configuration
 const int idxroomtemp =         162;
 const int idxmodeselector =     163;
 const int idxvaneselector =     164;
 const int idxfanspeedselector = 165;
-const int idxsetpointtemp =     166;
+const int idxtempsetpoint =     166;
+const int idxerrorcode =        168;
+const int idxoutdoortemp =      169;
 
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
@@ -355,10 +357,25 @@ void loop()
     if (newPayloadReceived)
     {
       float roomtemp = (mosi_frame[6] - 61) / 4;
-      // create mqtt string
+      float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
+      int errorcode = mosi_frame[7];
+      float outdoortemp = mosi_frame[14];
+      // create mqtt string for roomtemp
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      // create mqtt string for tempsetpoint
+      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxtempsetpoint, tempsetpoint);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);  
+      // create mqtt string for outdoortemp
+      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxoutdoortemp, outdoortemp);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);     
       // Debug message
       //Serial.println(mqttbuffer);
       newPayloadReceived = false;
