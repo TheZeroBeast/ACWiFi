@@ -371,7 +371,7 @@ void loop()
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);  
-      if ((mosi_frame[13] & 0x30) == 0x10)
+      if ((mosi_frame[9] & 0x80) == 0)
       {
         float outdoortemp = mosi_frame[14];
         // create mqtt string for outdoortemp
