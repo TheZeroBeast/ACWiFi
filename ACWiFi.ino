@@ -33,7 +33,6 @@ const int idxvaneselector =     164;
 const int idxfanspeedselector = 165;
 const int idxsetpointtemp =     166;
 
-
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
 const char* wifipassword = "AlfieZephyr";
@@ -111,8 +110,8 @@ void callback(char* topic, byte* payload, unsigned int length)
   {
      const char* command = jsonBuffer["svalue1"];
      if( strcmp(command, "0") == 0 )       {newMode = 1; Serial.println("Turn Off.");}
-     else if( strcmp(command, "20") == 0 ) {newMode = 2; Serial.println("Turn On - Heat."); }
-     else if( strcmp(command, "30") == 0 ) {newMode = 3; Serial.println("Turn On - Cool."); }
+     else if( strcmp(command, "20") == 0 ) {newMode = 2; Serial.println("Turn On - Heat.");}
+     else if( strcmp(command, "30") == 0 ) {newMode = 3; Serial.println("Turn On - Cool.");}
      else if( strcmp(command, "40") == 0 ) {newMode = 4; Serial.println("Turn On - Auto.");} 
      else if( strcmp(command, "50") == 0 ) {newMode = 5; Serial.println("Turn On - Dry.");}
      else if( strcmp(command, "60") == 0 ) {newMode = 6; Serial.println("Turn On - Fan.");}
@@ -120,15 +119,25 @@ void callback(char* topic, byte* payload, unsigned int length)
   }
   else if (strcmp(topic, mqtt_domoticz_topic_out_vane) == 0)
   {
-    
+     const char* command = jsonBuffer["svalue1"];
+     if( strcmp(command, "10") == 0 )      {newVanes = 1; Serial.println("Vanes set to 1.");}
+     else if( strcmp(command, "20") == 0 ) {newVanes = 2; Serial.println("Vanes set to 2.");}
+     else if( strcmp(command, "30") == 0 ) {newVanes = 3; Serial.println("Vanes set to 3.");}
+     else if( strcmp(command, "40") == 0 ) {newVanes = 4; Serial.println("Vanes set to 4.");} 
+     else if( strcmp(command, "50") == 0 ) {newVanes = 5; Serial.println("Vanes set to swing.");}
   }
   else if (strcmp(topic, mqtt_domoticz_topic_out_fanspeed) == 0)
   {
-    
+     const char* command = jsonBuffer["svalue1"];
+     if( strcmp(command, "10") == 0 )      {newFanspeed = 1; Serial.println("Fan speed set to 1.");}
+     else if( strcmp(command, "20") == 0 ) {newFanspeed = 2; Serial.println("Fan speed set to 2.");}
+     else if( strcmp(command, "30") == 0 ) {newFanspeed = 3; Serial.println("Fan speed set to 3.");}
+     else if( strcmp(command, "40") == 0 ) {newFanspeed = 4; Serial.println("Fan speed set to 4.");} 
   }
   else if (strcmp(topic, mqtt_domoticz_topic_out_setpoint) == 0)
   {
-    
+     float command = jsonBuffer["svalue1"];
+     newSetpoint = command;
   }
 }
 
@@ -224,8 +233,6 @@ void exchange_payloads()
       //Construct setpoint bitfield (#6) from last MHI value or MQTT update
       if (newSetpoint == 0) miso_frame[5] = mosi_bitfield4_10[2] & ~0b10000000;                           //Copy last received MHI setpoint and clear the write bit
       else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                              //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
-
-
 
       //Reset all state changes
       newMode     = 0;
