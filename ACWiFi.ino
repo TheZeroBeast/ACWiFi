@@ -27,8 +27,12 @@ PubSubClient client(espClient);
 int starttime = 0;
 
 // Domoticz IDX List
-const int idxroomtemp = 162;
-const int idxmodeselector = 163;
+const int idxroomtemp =         162;
+const int idxmodeselector =     163;
+const int idxvaneselector =     164;
+const int idxfanspeedselector = 165;
+const int idxsetpointtemp =     166;
+
 
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
