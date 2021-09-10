@@ -15,8 +15,11 @@ String devicename = "ACWiFi-" + String(ESP.getChipId());
 const char* mqtt_server = "192.168.1.200";
 const char* mqtt_username = "";
 const char* mqtt_password = "";
-const char* mqtt_domoticz_topic_in = "domoticz/in";
-const char* mqtt_domoticz_topic_out = "domoticz/out";
+const char* mqtt_domoticz_topic_in =           "domoticz/in";
+const char* mqtt_domoticz_topic_out_mode =     "domoticz/out/163";
+const char* mqtt_domoticz_topic_out_vane =     "domoticz/out/164";
+const char* mqtt_domoticz_topic_out_fanspeed = "domoticz/out/165";
+const char* mqtt_domoticz_topic_out_setpoint = "domoticz/out/166";
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -88,60 +91,40 @@ const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
 // Handle recieved MQTT message, just print it
 void callback(char* topic, byte* payload, unsigned int length) 
 {
-  DynamicJsonDocument jsonBuffer( MQTT_MAX_PACKET_SIZE );
+  DynamicJsonDocument jsonBuffer(1024);
   String messageReceived="";
-  //Serial.print("Message arrived [");
-  //Serial.print(topic);
-  //Serial.print("] ");
-  for (int i = 0; i < length; i++)
-    //Serial.print((char)payload[i]);
-    messageReceived+=((char)payload[i]);
-  //Serial.println();
-
-  if ( strcmp(topic, mqtt_domoticz_topic_out) == 0 ) 
-  {      
-    DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
-    if (error)
-    {
-       Serial.println("parsing Domoticz/out JSON Received Message failed");
-       return;
-       Serial.print(F("deserializeJson() failed with code "));
-       Serial.println(error.c_str());
-    } 
-    const char* idxChar = jsonBuffer["idx"];
-    String idx = String(idxChar);
-    if ( idx == String(idxmodeselector)) 
-    {
-       const char* command = jsonBuffer["svalue1"];
-       if( strcmp(command, "0") == 0 ) // "0" means we have to switch OFF the AC
-       { 
-        newMode = 1;  
-       }
-       if( strcmp(command, "20") == 0 ) // "20" means we have to switch ON the AC in HEAT mode
-       { 
-        newMode = 2;  
-       }
-       if( strcmp(command, "30") == 0 ) // "30" means we have to switch ON the AC in COOL mode
-       { 
-        newMode = 3; 
-       }
-       if( strcmp(command, "40") == 0 ) // "40" means we have to switch ON the AC in AUTO mode
-       { 
-        newMode = 4; 
-       }
-       if( strcmp(command, "50") == 0 ) // "50" means we have to switch ON the AC in DRY mode
-       { 
-        newMode = 5; 
-       }
-       if( strcmp(command, "60") == 0 ) // "60" means we have to switch ON the AC in FAN mode
-       { 
-        newMode = 6;  
-       }
-       if( strcmp(command, "10") == 0 ) // "10" means we have to switch ON the AC with the last mode used
-       { 
-        newMode = 7; 
-       }                   
-     } 
+  for (int i = 0; i < length; i++) messageReceived+=((char)payload[i]);
+  
+  DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
+  if (error)
+  {
+     Serial.println("parsing Domoticz/out JSON Received Message failed");
+     Serial.print(F("deserializeJson() failed with code "));
+     Serial.println(error.c_str());
+     return;
+  }
+  if (strcmp(topic, mqtt_domoticz_topic_out_mode) == 0) 
+  {
+     const char* command = jsonBuffer["svalue1"];
+     if( strcmp(command, "0") == 0 )       {newMode = 1; Serial.println("Turn Off.");}
+     else if( strcmp(command, "20") == 0 ) {newMode = 2; Serial.println("Turn On - Heat."); }
+     else if( strcmp(command, "30") == 0 ) {newMode = 3; Serial.println("Turn On - Cool."); }
+     else if( strcmp(command, "40") == 0 ) {newMode = 4; Serial.println("Turn On - Auto.");} 
+     else if( strcmp(command, "50") == 0 ) {newMode = 5; Serial.println("Turn On - Dry.");}
+     else if( strcmp(command, "60") == 0 ) {newMode = 6; Serial.println("Turn On - Fan.");}
+     else if( strcmp(command, "10") == 0 ) {newMode = 7; Serial.println("Turn On - Last Mode.");}
+  }
+  else if (strcmp(topic, mqtt_domoticz_topic_out_vane) == 0)
+  {
+    
+  }
+  else if (strcmp(topic, mqtt_domoticz_topic_out_fanspeed) == 0)
+  {
+    
+  }
+  else if (strcmp(topic, mqtt_domoticz_topic_out_setpoint) == 0)
+  {
+    
   }
 }
 
@@ -156,9 +139,15 @@ void reconnect()
     if (client.connect("ACWiFi")) 
     {
       Serial.println("connected to MQTT broker!");
+      
+      client.setBufferSize(2048);
       // suscribe to MQTT topics
-      Serial.print("Subscribe to domoticz/out topic. Status=");
-      if ( client.subscribe(mqtt_domoticz_topic_out, 0) ) Serial.println("OK"); else Serial.println("FAILED"); 
+      Serial.print("Subscribe to domoticz/out/.. topics. Status=");
+      if ( client.subscribe(mqtt_domoticz_topic_out_mode) &&
+           client.subscribe(mqtt_domoticz_topic_out_vane) &&
+           client.subscribe(mqtt_domoticz_topic_out_fanspeed) &&
+           client.subscribe(mqtt_domoticz_topic_out_setpoint))
+         Serial.println("OK"); else Serial.println("FAILED");
     }
     else 
     {
@@ -232,6 +221,8 @@ void exchange_payloads()
       if (newSetpoint == 0) miso_frame[5] = mosi_bitfield4_10[2] & ~0b10000000;                           //Copy last received MHI setpoint and clear the write bit
       else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                              //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
 
+
+
       //Reset all state changes
       newMode     = 0;
       newVanes    = 0;
@@ -275,7 +266,6 @@ void exchange_payloads()
     float roomtemp = (mosi_frame[6] - 61) / 4;
     Serial.printf(" Room Temp:%.2f", roomtemp);
     Serial.println();
-    newPayloadReceived = false;
   }
 }
 
@@ -347,8 +337,8 @@ void loop()
     // MQTT client loop
     client.loop();
     if (millis() - starttime > 5000)
-    {
-
+    { 
+      starttime = millis();
     }
       
     if (newPayloadReceived)
@@ -360,8 +350,8 @@ void loop()
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // Debug message
       //Serial.println(mqttbuffer);
-      starttime = millis();
+      newPayloadReceived = false;
     }
   }
-  yield();
+   yield();
 }
