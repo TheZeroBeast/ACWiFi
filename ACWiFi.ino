@@ -359,7 +359,6 @@ void loop()
       float roomtemp = (mosi_frame[6] - 61) / 4;
       float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
       int errorcode = mosi_frame[7];
-      float outdoortemp = mosi_frame[14];
       // create mqtt string for roomtemp
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
@@ -372,10 +371,14 @@ void loop()
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);  
-      // create mqtt string for outdoortemp
-      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxoutdoortemp, outdoortemp);
-      // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);     
+      if ((mosi_frame[13] & 0x30) == 0x10)
+      {
+        float outdoortemp = mosi_frame[14];
+        // create mqtt string for outdoortemp
+        sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxoutdoortemp, outdoortemp);
+        // send data to the MQTT topic
+        client.publish(mqtt_domoticz_topic_in, mqttbuffer); 
+      }          
       // Debug message
       //Serial.println(mqttbuffer);
       newPayloadReceived = false;
