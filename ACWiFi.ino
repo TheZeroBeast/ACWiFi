@@ -49,6 +49,10 @@ byte newMode     = 0;
 byte newVanes    = 0;
 byte newFanspeed = 0;
 byte newSetpoint = 0;
+byte updatedMode     = 0;
+byte updatedVanes    = 0;
+byte updatedFanspeed = 0;
+byte updatedSetpoint = 0;
 
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
