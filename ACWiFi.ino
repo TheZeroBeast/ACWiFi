@@ -86,7 +86,7 @@ const byte vanesMask[6][4]     { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b11000000, 0b11000000, 0b10000000, 0b00000000 }}; //5 = swing
 
 //FANSPEED bitmasks                        Bitfield #5             Bitfield #10
-const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
+const byte fanspeedMask[6][4]  { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b00001000, 0b00000000, 0b11011000, 0b00000000 },  //0 = Unchanged (only clear 'write' bits)
                                    { 0b00001111, 0b00001000, 0b11011000, 0b00000000 },  //1 = Speed 1
                                    { 0b00001111, 0b00001001, 0b11011000, 0b00000000 },  //2 = Speed 2
@@ -122,19 +122,19 @@ void callback(char* topic, byte* payload, unsigned int length)
   else if (strcmp(topic, mqtt_domoticz_topic_out_vane) == 0)
   {
      const char* command = jsonBuffer["svalue1"];
-     if( strcmp(command, "10") == 0 )      {newVanes = 1; Serial.println("Vanes set to 1.");}
-     else if( strcmp(command, "20") == 0 ) {newVanes = 2; Serial.println("Vanes set to 2.");}
-     else if( strcmp(command, "30") == 0 ) {newVanes = 3; Serial.println("Vanes set to 3.");}
-     else if( strcmp(command, "40") == 0 ) {newVanes = 4; Serial.println("Vanes set to 4.");} 
-     else if( strcmp(command, "50") == 0 ) {newVanes = 5; Serial.println("Vanes set to swing.");}
+     if( strcmp(command, "0") == 0 )      {newVanes = 1; Serial.println("Vanes set to 1.");}
+     else if( strcmp(command, "10") == 0 ) {newVanes = 2; Serial.println("Vanes set to 2.");}
+     else if( strcmp(command, "20") == 0 ) {newVanes = 3; Serial.println("Vanes set to 3.");}
+     else if( strcmp(command, "30") == 0 ) {newVanes = 4; Serial.println("Vanes set to 4.");} 
+     else if( strcmp(command, "40") == 0 ) {newVanes = 5; Serial.println("Vanes set to swing.");}
   }
   else if (strcmp(topic, mqtt_domoticz_topic_out_fanspeed) == 0)
   {
      const char* command = jsonBuffer["svalue1"];
-     if( strcmp(command, "10") == 0 )      {newFanspeed = 1; Serial.println("Fan speed set to 1.");}
-     else if( strcmp(command, "20") == 0 ) {newFanspeed = 2; Serial.println("Fan speed set to 2.");}
-     else if( strcmp(command, "30") == 0 ) {newFanspeed = 3; Serial.println("Fan speed set to 3.");}
-     else if( strcmp(command, "40") == 0 ) {newFanspeed = 4; Serial.println("Fan speed set to 4.");} 
+     if( strcmp(command, "0") == 0 ) {newFanspeed = 1; Serial.println("Fan speed set to 1.");}
+     else if( strcmp(command, "10") == 0 ) {newFanspeed = 2; Serial.println("Fan speed set to 2.");}
+     else if( strcmp(command, "20") == 0 ) {newFanspeed = 3; Serial.println("Fan speed set to 3.");}
+     else if( strcmp(command, "30") == 0 ) {newFanspeed = 4; Serial.println("Fan speed set to 4.");} 
   }
   else if (strcmp(topic, mqtt_domoticz_topic_out_setpoint) == 0)
   {
@@ -214,27 +214,27 @@ void exchange_payloads()
       //Set 'state change' bits and 'write' bits if MQTT update received from ESP
       //otherwise only clear 'write' bits using masks from the xxxMask[0][] arrays
       //Bitfields 4, 5, 6, 10 are based on the last received MHI values (frame 47)
-      miso_frame[3]  =  mosi_bitfield4_10[0] & ~modeMask[newMode][0];                                       //Clear mode bits (bitfield 4)
+      miso_frame[3]  =  mosi_bitfield4_10[0] & ~modeMask[newMode][0];                                     //Clear mode bits (bitfield 4)
       miso_frame[3] |=  modeMask[newMode][1];                                                             //Set mode bits
 
       miso_frame[3] &= ~vanesMask[newVanes][0];                                                           //Clear vanes bits (bitfield 4)
       miso_frame[3] |=  vanesMask[newVanes][1];                                                           //Set vanes bits
 
-      miso_frame[4]  =  mosi_bitfield4_10[1] & ~vanesMask[newVanes][2];                                     //Clear vanes bits (bitfield 5)
+      miso_frame[4]  =  mosi_bitfield4_10[1] & ~vanesMask[newVanes][2];                                   //Clear vanes bits (bitfield 5)
       miso_frame[4] |=  vanesMask[newVanes][3];                                                           //Set vanes bits
 
       miso_frame[4] &= ~fanspeedMask[newFanspeed][0];                                                     //Clear fanspeed bits (bitfield 5)
       miso_frame[4] |=  fanspeedMask[newFanspeed][1];                                                     //Set fanspeed bits
 
-      bitWrite(mosi_bitfield4_10[6], 0, bitRead(mosi_bitfield4_10[6], 6));                                     //Copy bit 7 from rx_SPIframe[9] to bit 1 as the status bits for fan speed 4 appear to be swapped (!?) between MISO and MOSI
-      miso_frame[9] &=  ~0b00111111;                                                                      //Clear bits 1-6 and keep variant bits 7-8
+      bitWrite(mosi_bitfield4_10[6], 0, bitRead(mosi_bitfield4_10[6], 6));                                //Copy bit 7 from rx_SPIframe[9] to bit 1 as the status bits for fan speed 4 appear to be swapped (!?) between MISO and MOSI
+      miso_frame[9] &=  ~0b00111111;                                                                      //Clear bits 1-6 and keep bits 7-8
 
       miso_frame[9] |=  (mosi_bitfield4_10[6] & ~fanspeedMask[newFanspeed][2]);
       miso_frame[9] |=  fanspeedMask[newFanspeed][3];                                                     //Set fanspeed bits
 
       //Construct setpoint bitfield (#6) from last MHI value or MQTT update
       if (newSetpoint == 0) miso_frame[5] = mosi_bitfield4_10[2] & ~0b10000000;                           //Copy last received MHI setpoint and clear the write bit
-      else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                              //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
+      else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                               //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
 
       //Reset all state changes
       newMode     = 0;
@@ -271,14 +271,6 @@ void exchange_payloads()
       newPayloadReceived = true;
       mosi_frame[byte_cnt] = MOSI_byte;
     }
-  }
-  if (newPayloadReceived)
-  {
-    for (uint8_t i = 0; i < 20; i++)
-      Serial.printf("%.2x/%.2x ", mosi_frame[i], miso_frame[i]);
-    float roomtemp = (mosi_frame[6] - 61) / 4;
-    Serial.printf(" Room Temp:%.2f", roomtemp);
-    Serial.println();
   }
 }
 
@@ -321,6 +313,17 @@ void initOTA()
   }
 }
 
+String toBin(byte toBin)
+{
+  String temp = "";
+  byte bitMask = 0b10000000;
+  for (uint8_t i = 0; i < 8; i++) {
+    if (toBin & bitMask) temp += "1";
+    else temp += "0";
+    bitMask = bitMask >> 1;
+  } return temp;
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -343,18 +346,10 @@ void loop()
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.handle();
-    // Reconnect to MQTT broker if required
-    if (!client.connected()) {
-      reconnect();
-    }
-    // MQTT client loop
-    client.loop();
-    if (millis() - starttime > 5000)
-    { 
-      starttime = millis();
-    }
+    if (!client.connected()) reconnect(); // Reconnect to MQTT broker if required
+    client.loop(); // MQTT client loop
       
-    if (newPayloadReceived)
+    if (newPayloadReceived && millis() - starttime > 1000)
     {
       float roomtemp = (mosi_frame[6] - 61) / 4;
       float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
@@ -370,7 +365,42 @@ void loop()
       // create mqtt string for errorcode
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
       // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);  
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+
+      // Push State changes back to Domoticz to catch IR Remote updates
+      if (!(mosi_frame[4] & 0b00000111))
+      {
+        Serial.println("Fan Speed is 1.");
+        // create mqtt string for errorcode
+        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Off\" }", idxfanspeedselector);
+        // send data to the MQTT topic
+        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      }
+      else if (mosi_frame[4] & 0b00000001)
+      {
+        Serial.println("Fan Speed is 2.");
+        // create mqtt string for errorcode
+        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 10 }", idxfanspeedselector);
+        // send data to the MQTT topic
+        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      }
+      else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
+      {
+        Serial.println("Fan Speed is 3.");
+        // create mqtt string for errorcode
+        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 20 }", idxfanspeedselector);
+        // send data to the MQTT topic
+        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      }
+      else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
+      {
+        Serial.println("Fan Speed is 4.");
+        // create mqtt string for errorcode
+        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxfanspeedselector);
+        // send data to the MQTT topic
+        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      }
+
       /*if ((mosi_frame[9] & 0x80) == 0)
       {
         float outdoortemp = mosi_frame[14];
@@ -378,10 +408,22 @@ void loop()
         sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxoutdoortemp, outdoortemp);
         // send data to the MQTT topic
         client.publish(mqtt_domoticz_topic_in, mqttbuffer); 
-      }*/          
+      }*/
+               
       // Debug message
       //Serial.println(mqttbuffer);
+
+      Serial.println("     Byte03   Byte04   Byte05   Byte06   Byte07   Byte08   Byte09   Byte10   Byte11   Byte12   Byte13   Byte14   Byte15   Byte16   Byte17 ");
+      Serial.print("IN :");
+      for (uint8_t i = 3; i < 18; i++)
+        Serial.printf("%s,", toBin(mosi_frame[i]));
+      Serial.println();
+      Serial.print("OUT:");
+      for (uint8_t i = 3; i < 18; i++)
+        Serial.printf("%s,", toBin(miso_frame[i]));
+      Serial.println();
       newPayloadReceived = false;
+      starttime = millis();
     }
   }
    yield();
