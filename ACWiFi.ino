@@ -86,7 +86,7 @@ const byte vanesMask[6][4]     { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b11000000, 0b11000000, 0b10000000, 0b00000000 }}; //5 = swing
 
 //FANSPEED bitmasks                        Bitfield #5             Bitfield #10
-const byte fanspeedMask[6][4]  { //     CLEAR   |    SET        CLEAR   |    SET
+const byte fanspeedMask[5][4]  { //     CLEAR   |    SET        CLEAR   |    SET
                                    { 0b00001000, 0b00000000, 0b11011000, 0b00000000 },  //0 = Unchanged (only clear 'write' bits)
                                    { 0b00001111, 0b00001000, 0b11011000, 0b00000000 },  //1 = Speed 1
                                    { 0b00001111, 0b00001001, 0b11011000, 0b00000000 },  //2 = Speed 2
