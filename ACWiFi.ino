@@ -31,7 +31,7 @@ const int idxroomtemp =         162;
 const int idxmodeselector =     163;
 const int idxvaneselector =     164;
 const int idxfanspeedselector = 165;
-const int idxtempsetpoint =     166;
+const int idxtempsetpoint =     167;
 const int idxerrorcode =        168;
 const int idxoutdoortemp =      169;
 
@@ -39,7 +39,6 @@ const int idxoutdoortemp =      169;
 const char* wifissid = "McKWiFi24GHz";
 const char* wifipassword = "AlfieZephyr";
 
-byte variant_no = 0; // Frame variation that is currently being sent (0, 1 or 2 in frameVariant[])
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
 bool checksumError = false;
@@ -49,10 +48,10 @@ byte newMode     = 0;
 byte newVanes    = 0;
 byte newFanspeed = 0;
 byte newSetpoint = 0;
-byte updatedMode     = 0;
-byte updatedVanes    = 0;
-byte updatedFanspeed = 0;
-byte updatedSetpoint = 0;
+bool updatedMode     = false;
+bool updatedVanes    = false;
+bool updatedFanspeed = false;
+bool updatedSetpoint = false;
 
 const byte mosi_frame_sig[3] = {0x6d, 0x80, 0x04}; // SPI frame start signature: first 3 bytes in a full SPI data frame. Used to sync to MHI SPI data in SPI_sync() routine. Might be different on other unit types!
 
@@ -62,12 +61,6 @@ byte miso_frame[20] = {0xA9, 0x00, 0x07, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x0
 byte mosi_frame[20]; // Array to collect a single frame of SPI data received from the MHI unit
 
 byte mosi_bitfield4_10[7]; // Array containing bitfields 4-10 from rx_SPIframe, which holds current MHI mode, vanes, fans speed, ambient temperature and setpoint
-
-//Alternating bitfield 10-18 variations, each successively send for 48 frames. Bit 3 in bitfield 18 functions as a clock and is 1 for 24 frames and 0 for the subsequent 24 frames. I have never seen bit fields 11-12 changing, so don't know what they are for.
-//                         Bitfield:   10    11    12    13    14    15    16    17    18
-const byte frameVariant[3][9]  {   { 0x40, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0x0F, 0x04 },  //variant number 0
-                                   { 0x80, 0x00, 0x00, 0x32, 0xD6, 0x01, 0x00, 0x0F, 0x04 },  //variant number 1
-                                   { 0x80, 0x00, 0x00, 0xF1, 0xF7, 0xFF, 0xFF, 0x0F, 0x04 }};   //variant number 2
 
 //MODE bitmasks                            Bitfield #4
 const byte modeMask[8][2]      { //     CLEAR   |    SET
@@ -241,8 +234,8 @@ void exchange_payloads()
       else miso_frame[5] = (newSetpoint << 1) | 0b10000000;                                               //MQTT updated setpoint in degrees Celsius -> shift 1 bit left and set write bit (#8)
 
       //Reset all state changes
-      newMode     = 0;
-      newVanes    = 0;
+      newMode = 0;
+      newVanes = 0;
       newFanspeed = 0;
       newSetpoint = 0;
       break;
@@ -271,11 +264,200 @@ void exchange_payloads()
         MOSI_byte += bit_mask;
       bit_mask = bit_mask << 1;
     }
+
     if (mosi_frame[byte_cnt] != MOSI_byte) {
       newPayloadReceived = true;
       mosi_frame[byte_cnt] = MOSI_byte;
+      if (byte_cnt == 3)
+      {
+        if ((mosi_frame[byte_cnt] & 0b00011101) > 0) updatedMode = true;
+        if ((mosi_frame[byte_cnt] & 0b01000000) > 0) updatedVanes = true;
+      }
+      else if (byte_cnt == 4)
+      {
+        if ((mosi_frame[byte_cnt] & 0b00110000) > 0) updatedVanes = true;
+        if ((mosi_frame[byte_cnt] & 0b00000111) > 0) updatedFanspeed = true;
+      }
+      else if (byte_cnt == 5 && (mosi_frame[byte_cnt] & 0xFF) > 0) updatedSetpoint = true;
+      else if (byte_cnt == 9 && (mosi_frame[byte_cnt] & 0b01000000) > 0) updatedFanspeed = true;
     }
   }
+}
+
+void domoticzModeUpdate()
+{
+  updatedMode = false;
+  if (!(mosi_frame[3] & 0b00000001))
+  {
+    Serial.println("Power Off.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Off\" }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) ==
+          (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) & mosi_frame[3]))
+  {
+    Serial.println("Power On - Heat.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 10 }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) ==
+          (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) & mosi_frame[3]))
+  {
+    Serial.println("Power On - Cool.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 20 }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) ==
+          (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) & mosi_frame[3]))
+  {
+    Serial.println("Power On - Auto.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) ==
+          (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) & mosi_frame[3]))
+  {
+    Serial.println("Power On - Dry.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 40 }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) ==
+          (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) & mosi_frame[3]))
+  {
+    Serial.println("Power On - Fan.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 50 }", idxmodeselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+}
+
+void domoticzVanesUpdate()
+{
+  updatedVanes = false;
+  if ((((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1]) ==
+      ((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1])&mosi_frame[3]) &&
+      (((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3]) ==
+      ((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3])&mosi_frame[3]))
+  {
+      Serial.println("Vanes Pos.1 (UP).");
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Off\" }", idxvaneselector);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1]) ==
+      ((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1])&mosi_frame[3]) &&
+      (((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3]) ==
+      ((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3])&mosi_frame[3]))
+  {
+      Serial.println("Vanes Pos.2.");
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 10 }", idxvaneselector);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1]) ==
+      ((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1])&mosi_frame[3]) &&
+      (((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3]) ==
+      ((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3])&mosi_frame[3]))
+  {
+      Serial.println("Vanes Pos.3.");
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 20 }", idxvaneselector);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1]) ==
+      ((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1])&mosi_frame[3]) &&
+      (((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3]) ==
+      ((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3])&mosi_frame[3]))
+  {
+      Serial.println("Vanes Pos.4 (DOWN).");
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxvaneselector);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1]) ==
+      ((vanesMask[0][0]^vanesMask[1][0])&vanesMask[1][1])&mosi_frame[3]) &&
+      (((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3]) ==
+      ((vanesMask[0][2]^vanesMask[1][2])&vanesMask[1][3])&mosi_frame[3]))
+  {
+      Serial.println("Vanes Swing.");
+      // create mqtt string for errorcode
+      sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxvaneselector);
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+}
+
+void domoticzFanspeedUpdate()
+{
+  updatedFanspeed = false;
+  if (!(mosi_frame[4] & 0b00000111))
+  {
+    Serial.println("Fan Speed is 1.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Off\" }", idxfanspeedselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if (mosi_frame[4] & 0b00000001)
+  {
+    Serial.println("Fan Speed is 2.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 10 }", idxfanspeedselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
+  {
+    Serial.println("Fan Speed is 3.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 20 }", idxfanspeedselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+  else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
+  {
+    Serial.println("Fan Speed is 4.");
+    // create mqtt string for errorcode
+    sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxfanspeedselector);
+    // send data to the MQTT topic
+    client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+  }
+}
+
+void domoticzSetpointUpdate()
+{
+  updatedSetpoint = false;
+  float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
+  // create mqtt string for tempsetpoint
+  sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxtempsetpoint, tempsetpoint);
+  // send data to the MQTT topic
+  client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+}
+
+String toBin(byte toBin)
+{
+  String temp = "";
+  byte bitMask = 0b10000000;
+  for (uint8_t i = 0; i < 8; i++) {
+    if (toBin & bitMask) temp += "1";
+    else temp += "0";
+    bitMask = bitMask >> 1;
+  } return temp;
 }
 
 void initWiFi() 
@@ -317,17 +499,6 @@ void initOTA()
   }
 }
 
-String toBin(byte toBin)
-{
-  String temp = "";
-  byte bitMask = 0b10000000;
-  for (uint8_t i = 0; i < 8; i++) {
-    if (toBin & bitMask) temp += "1";
-    else temp += "0";
-    bitMask = bitMask >> 1;
-  } return temp;
-}
-
 void setup() 
 {
   Serial.begin(115200);
@@ -356,54 +527,21 @@ void loop()
     if (newPayloadReceived && millis() - starttime > 1000)
     {
       float roomtemp = (mosi_frame[6] - 61) / 4;
-      float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
+      //float tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
       int errorcode = mosi_frame[7];
       // create mqtt string for roomtemp
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // create mqtt string for tempsetpoint
-      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxtempsetpoint, tempsetpoint);
+      //sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxtempsetpoint, tempsetpoint);
       // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
+      //client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // create mqtt string for errorcode
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
 
-      // Push State changes back to Domoticz to catch IR Remote updates
-      if (!(mosi_frame[4] & 0b00000111))
-      {
-        Serial.println("Fan Speed is 1.");
-        // create mqtt string for errorcode
-        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Off\" }", idxfanspeedselector);
-        // send data to the MQTT topic
-        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-      }
-      else if (mosi_frame[4] & 0b00000001)
-      {
-        Serial.println("Fan Speed is 2.");
-        // create mqtt string for errorcode
-        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 10 }", idxfanspeedselector);
-        // send data to the MQTT topic
-        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-      }
-      else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
-      {
-        Serial.println("Fan Speed is 3.");
-        // create mqtt string for errorcode
-        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 20 }", idxfanspeedselector);
-        // send data to the MQTT topic
-        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-      }
-      else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
-      {
-        Serial.println("Fan Speed is 4.");
-        // create mqtt string for errorcode
-        sprintf(mqttbuffer, "{\"command\": \"switchlight\", \"idx\": %d, \"switchcmd\": \"Set Level\", \"level\": 30 }", idxfanspeedselector);
-        // send data to the MQTT topic
-        client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-      }
 
       /*if ((mosi_frame[9] & 0x80) == 0)
       {
