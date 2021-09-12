@@ -558,11 +558,11 @@ void loop()
       Serial.println("     Byte03   Byte04   Byte05   Byte06   Byte07   Byte08   Byte09   Byte10   Byte11   Byte12   Byte13   Byte14   Byte15   Byte16   Byte17 ");
       Serial.print("IN :");
       for (uint8_t i = 3; i < 18; i++)
-        Serial.printf("%s,", toBin(mosi_frame[i]));
+        Serial.printf("%s,", toBin(mosi_frame[i]).c_str());
       Serial.println();
       Serial.print("OUT:");
       for (uint8_t i = 3; i < 18; i++)
-        Serial.printf("%s,", toBin(miso_frame[i]));
+        Serial.printf("%s,", toBin(miso_frame[i]).c_str());
       Serial.println();
       newPayloadReceived = false;
       starttime = millis();
