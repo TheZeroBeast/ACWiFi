@@ -8,3 +8,5 @@ This allows control and monitoring of the attached air conditioner via MQTT and 
 An open-source PCB design that supports this firmware can be found here https://github.com/dvisser/MHI-ESP-PCB
 
 Credit to GitHub user rjdekker for their work documenting the MHI SPI protocol, their work can be found here https://github.com/rjdekker/MHI2MQTT
+
+NOTE: A fix for Arduino OTA for Windows 10 based systems is included in the batch file within this repository.
