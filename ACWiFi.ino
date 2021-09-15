@@ -2,6 +2,9 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <IRremoteESP8266.h>
+#include <IRrecv.h>
+#include <IRutils.h>
 
 // IO pin definitions
 #define SCK_PIN  14
@@ -10,6 +13,16 @@
 
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-" + String(ESP.getChipId());
+
+// set pin used for IR recv signal input
+const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
+
+// future note - GPIO4 = D2 on Wemos D1/R1 mini is IR signal out to MHI unit
+
+// IRremote config and init
+IRrecv irrecv(kRecvPin);
+
+decode_results results;
 
 // MQTT configuration and variables
 const char* mqtt_server = "192.168.1.200";
@@ -34,6 +47,7 @@ const int idxfanspeedselector = 165;
 const int idxtempsetpoint =     167;
 const int idxerrorcode =        168;
 const int idxoutdoortemp =      169;
+const int idxirremotedata =     170;
 
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
@@ -509,7 +523,8 @@ void setup()
   initOTA();
   // Setup MQTT
   client.setServer(mqtt_server, 1883);
-  client.setCallback(callback); 
+  client.setCallback(callback);
+  irrecv.enableIRIn(); // start IR receiver 
   starttime = millis();
 }
 
@@ -521,7 +536,14 @@ void loop()
     ArduinoOTA.handle();
     if (!client.connected()) reconnect(); // Reconnect to MQTT broker if required
     client.loop(); // MQTT client loop
-      
+    if (irrecv.decode(&results))
+    {
+      // create mqtt string for IR Remote Data
+      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%s;0\" }", idxirremotedata, uint64ToString(results.value, HEX).c_str());
+      // send data to the MQTT topic
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);      
+      irrecv.resume(); 
+    }
     if (newPayloadReceived && millis() - starttime > 1000)
     {
       float roomtemp = (mosi_frame[6] - 61) / 4;
@@ -566,5 +588,5 @@ void loop()
       starttime = millis();
     }
   }
-   yield();
+  yield();
 }
