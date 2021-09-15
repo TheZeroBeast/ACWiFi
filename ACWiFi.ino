@@ -50,8 +50,8 @@ const int idxoutdoortemp =      169;
 const int idxirremotedata =     170;
 
 // WiFi credentials
-const char* wifissid = "McKWiFi24GHz";
-const char* wifipassword = "AlfieZephyr";
+const char* wifissid = "Go Away";
+const char* wifipassword = "away1234";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -179,9 +179,8 @@ void reconnect()
     {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      Serial.println("Trying again during next program loop.");
+      return;
     }
   }
 }
@@ -256,10 +255,8 @@ void exchange_payloads()
   }
   update_checksum();                                                                                       //<FRAME 47> Collect the most recent bit fields 4-10 for constructing an updated tx_SPIframe after the upcoming frame (48)
 
-  int checkSCKMillis = millis();
   int SCKMillis = millis();               // time of last SCK low level
   while (millis() - SCKMillis < 5) { // wait for 5ms stable high signal to detect a frame start
-    if (millis() - checkSCKMillis > 100) return; // check for clk signal, if none, allow code to run without causing WDT reset loop - mainly for dev purposes
     if (!digitalRead(SCK_PIN)) SCKMillis = millis();
   }
 
@@ -268,7 +265,10 @@ void exchange_payloads()
     byte MOSI_byte = 0;
     byte bit_mask = 1;
     for (uint8_t bit_cnt = 0; bit_cnt < 8; bit_cnt++) { // read and write 1 byte
-      while (digitalRead(SCK_PIN)) {} // wait for falling edge
+      while (digitalRead(SCK_PIN)) // wait for falling edge
+      {
+        if (millis() - SCKMillis > 100) return;
+      } 
       if ((miso_frame[byte_cnt] & bit_mask) > 0)
         digitalWrite(MISO_PIN, 1);
       else
@@ -521,7 +521,6 @@ void setup()
   pinMode(MISO_PIN, OUTPUT);
   initWiFi();
   initOTA();
-  // Setup MQTT
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   irrecv.enableIRIn(); // start IR receiver 
