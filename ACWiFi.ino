@@ -50,8 +50,8 @@ const int idxoutdoortemp =      169;
 const int idxirremotedata =     170;
 
 // WiFi credentials
-const char* wifissid = "Go Away";
-const char* wifipassword = "away1234";
+const char* wifissid = "McKWiFi24GHz";
+const char* wifipassword = "AlfieZephyr";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -363,12 +363,6 @@ void domoticzModeUpdate()
 
 void domoticzVanesUpdate()
 {
-                                 /*{ 0b10000000, 0b00000000, 0b10000000, 0b00000000 },  //0 = Unchanged (only clear 'write' bits)
-                                   { 0b11000000, 0b10000000, 0b10110000, 0b10000000 },  //1 = 1 (up)
-                                   { 0b11000000, 0b10000000, 0b10110000, 0b10010000 },  //2 = 2
-                                   { 0b11000000, 0b10000000, 0b10110000, 0b10100000 },  //3 = 3
-                                   { 0b11000000, 0b10000000, 0b10110000, 0b10110000 },  //4 = 4 (down)
-                                   { 0b11000000, 0b11000000, 0b10000000, 0b00000000 }}; //5 = swing*/
   updatedVanes = false;
   if (0b01000000 & mosi_frame[3])
   {
@@ -472,6 +466,12 @@ String toBin(byte toBin)
   } return temp;
 }
 
+void _delay(uint8_t ms)
+{ // non blocking delay method
+  int ts = millis();
+  while (millis() - ts < ms) {}
+}
+
 void initWiFi() 
 {
   WiFi.mode(WIFI_STA);
@@ -480,7 +480,7 @@ void initWiFi()
   int timeout = 30; // 30 second WiFi timeout
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
-    delay(1000);
+    _delay(1000);
     if (timeout == 0) return;
     timeout--;
   }
@@ -552,16 +552,10 @@ void loop()
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxroomtemp, roomtemp);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-      // create mqtt string for tempsetpoint
-      //sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxtempsetpoint, tempsetpoint);
-      // send data to the MQTT topic
-      //client.publish(mqtt_domoticz_topic_in, mqttbuffer);
       // create mqtt string for errorcode
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%3.1f;0\" }", idxerrorcode, errorcode);
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);
-
-
       /*if ((mosi_frame[9] & 0x80) == 0)
       {
         float outdoortemp = mosi_frame[14];
@@ -570,7 +564,6 @@ void loop()
         // send data to the MQTT topic
         client.publish(mqtt_domoticz_topic_in, mqttbuffer); 
       }*/
-               
       // Debug message
       //Serial.println(mqttbuffer);
 
