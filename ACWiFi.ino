@@ -466,7 +466,7 @@ String toBin(byte toBin)
   } return temp;
 }
 
-void _delay(uint8_t ms)
+void wait(uint8_t ms)
 { // non blocking delay method
   int ts = millis();
   while (millis() - ts < ms) {}
@@ -480,7 +480,7 @@ void initWiFi()
   int timeout = 30; // 30 second WiFi timeout
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
-    _delay(1000);
+    wait(1000);
     if (timeout == 0) return;
     timeout--;
   }
