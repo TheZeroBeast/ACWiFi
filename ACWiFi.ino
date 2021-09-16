@@ -50,8 +50,8 @@ const int idxoutdoortemp =      169;
 const int idxirremotedata =     170;
 
 // WiFi credentials
-const char* wifissid = "McKWiFi24GHz";
-const char* wifipassword = "AlfieZephyr";
+const char* wifissid = "Go Away";
+const char* wifipassword = "away1234";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -466,7 +466,7 @@ String toBin(byte toBin)
   } return temp;
 }
 
-void wait(uint8_t ms)
+void wait(uint16_t ms)
 { // non blocking delay method
   int ts = millis();
   while (millis() - ts < ms) {}
@@ -480,10 +480,12 @@ void initWiFi()
   int timeout = 30; // 30 second WiFi timeout
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
-    wait(1000);
+    //wait(1000);
+    delay(1000);
     if (timeout == 0) return;
     timeout--;
   }
+  Serial.println("Connected to SSID:" + String(wifissid));
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
