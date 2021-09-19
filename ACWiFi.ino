@@ -466,12 +466,6 @@ String toBin(byte toBin)
   } return temp;
 }
 
-void wait(uint16_t ms)
-{ // non blocking delay method
-  int ts = millis();
-  while (millis() - ts < ms) {}
-}
-
 void initWiFi() 
 {
   WiFi.mode(WIFI_STA);
@@ -480,11 +474,12 @@ void initWiFi()
   int timeout = 30; // 30 second WiFi timeout
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
-    //wait(1000);
     delay(1000);
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     if (timeout == 0) return;
     timeout--;
   }
+  digitalWrite(LED_BUILTIN, HIGH);
   Serial.println("Connected to SSID:" + String(wifissid));
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
@@ -516,6 +511,8 @@ void initOTA()
 void setup() 
 {
   Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
   pinMode(16, OUTPUT); // turn on level shifter
   digitalWrite(16, 1); // turn on level shifter
   pinMode(SCK_PIN, INPUT);
