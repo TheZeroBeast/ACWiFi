@@ -484,6 +484,7 @@ void initWiFi()
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
+  bool setSleepMode(WIFI_MODEM_SLEEP); // set modem sleep mode
 }
 
 void initOTA() 
@@ -523,7 +524,7 @@ void setup()
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   irrecv.enableIRIn(); // start IR receiver 
-  starttime = millis();
+  starttime = millis();  
 }
 
 void loop() 
