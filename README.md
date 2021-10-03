@@ -7,6 +7,10 @@ This allows control and monitoring of the attached air conditioner via MQTT and 
 
 The "master" branch is suitable for use with Home Assistant and the "domoticz" branch is suitable for use with Domoticz.
 
+The "master" branch is currently in active development and testing.
+
+The "domoticz" branch is 100% tested and functional.
+
 An open-source PCB design that supports this firmware can be found here https://github.com/dvisser/MHI-ESP-PCB
 
 Credit to GitHub user rjdekker for their work documenting the MHI SPI protocol, their work can be found here https://github.com/rjdekker/MHI2MQTT
