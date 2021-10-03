@@ -479,12 +479,12 @@ void setup()
 
 void loop() 
 {
-  sendDiscovery();
   exchange_payloads();
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.handle();
     if (!client.connected()) reconnect(); // Reconnect to MQTT broker if required
+    sendDiscovery();
     client.loop(); // MQTT client loop
     // Remove IR decode to string and push to domoticz as unsure how to integrate this into Home Assistant Climate Integration?
     /*if (irrecv.decode(&results))
