@@ -144,7 +144,7 @@ void reconnect()
   {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ACWiFi"))
+    if (client.connect("ACWiFi", mqtt_username, mqtt_password))
     {
       Serial.println("connected to MQTT broker!");
       
