@@ -484,6 +484,7 @@ void initWiFi()
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
+  bool setSleepMode(WIFI_MODEM_SLEEP); // set modem sleep mode
 }
 
 void initOTA() 
