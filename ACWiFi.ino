@@ -25,9 +25,9 @@ decode_results results;
 
 // MQTT configuration and variables
 // Important - Please search and replace all instances of the word "loungeroom" with your unique device name relevant to your installation!
-const char* mqtt_server = "192.168.1.200";
-const char* mqtt_username = "";
-const char* mqtt_password = "";
+const char* mqtt_server = "insertyourmqttserveripaddresshere";
+const char* mqtt_username = "insertyourmqttusernamehere";
+const char* mqtt_password = "insertyourmqttpasswordhere";
 const char* mqtt_discovery_topic =              "homeassistant/climate/loungeroom/config";
 const char* mqtt_mode_command_topic =           "homeassistant/climate/loungeroom/mode";
 const char* mqtt_swing_mode_command_topic =     "homeassistant/climate/loungeroom/swing";
@@ -41,8 +41,8 @@ PubSubClient client(espClient);
 int starttime = 0;
 
 // WiFi credentials
-const char* wifissid = "Go Away";
-const char* wifipassword = "away1234";
+const char* wifissid = "insertyourssidhere";
+const char* wifipassword = "insertyourpassphrasehere";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -309,7 +309,7 @@ void sendDiscovery()
  * }
  */
   char mqttdiscoverybuffer[1000];
-  sprintf(mqttdiscoverybuffer, "{\"name\": \"Loungeroom\", \"mode_command_topic\": \"%s\", \"mode_state_topic\": \"%s\", \"mode_state_template\": \"\", \"swing_mode_command_topic\": \"%s\", \"swing_mode_state_topic\": \"%s\", \"swing_mode_state_template\": \"\", \"fan_mode_command_topic\": \"%s\", \"fan_mode_state_topic\": \"%s\", \"fan_mode_state_template\": \"\", \"temperature_command_topic\": \"%s\", \"temperature_state_topic\": \"%s\", \"temperature_state_template\": \"\", \"current_temperature_topic\": \"%s\", \"current_temperature_template\": \"\", \"min_temp\": \"16\", \"max_temp\": \"30\", \"temp_step\": \"1.0\", \"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\", \"on_last\"], \"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], \"fan_modes\":[\"1\", \"2\", \"3\", \"4\"] }", mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic, mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic, mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
+  sprintf(mqttdiscoverybuffer, "{\"name\": \"Loungeroom\", \"mode_command_topic\": \"%s\", \"mode_state_topic\": \"%s\", \"mode_state_template\": \"\", \"swing_mode_command_topic\": \"%s\", \"swing_mode_state_topic\": \"%s\", \"swing_mode_state_template\": \"\", \"fan_mode_command_topic\": \"%s\", \"fan_mode_state_topic\": \"%s\", \"fan_mode_state_template\": \"\", \"temperature_command_topic\": \"%s\", \"temperature_state_topic\": \"%s\", \"temperature_state_template\": \"\", \"current_temperature_topic\": \"%s\", \"current_temperature_template\": \"\", \"min_temp\": \"16\", \"max_temp\": \"30\", \"temp_step\": \"1.0\", \"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\", \"on_last\"], \"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], \"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], \"unique_id\": \"Loungeroom\" }", mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic, mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic, mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
   client.publish(mqtt_discovery_topic, mqttdiscoverybuffer);
 }
 
