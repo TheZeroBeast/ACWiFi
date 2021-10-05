@@ -30,7 +30,6 @@ const char* mqtt_username = "mqtt";
 const char* mqtt_password = "mqtt";
 const char* mqtt_discovery_topic =              "homeassistant/climate/loungeroom/config";
 const char* mqtt_mode_command_topic =           "homeassistant/climate/loungeroom/mode";
-const char* mqtt_power_command_topic =          "homeassistant/climate/loungeroom/power";
 const char* mqtt_swing_mode_command_topic =     "homeassistant/climate/loungeroom/swing";
 const char* mqtt_fan_mode_command_topic =       "homeassistant/climate/loungeroom/fan";
 const char* mqtt_temperature_command_topic =    "homeassistant/climate/loungeroom/temperature";
@@ -42,8 +41,8 @@ PubSubClient client(espClient);
 int starttime = 0;
 
 // WiFi credentials
-const char* wifissid = "ssidgoeshere";
-const char* wifipassword = "passphrasegoeshere";
+const char* wifissid = "ssid";
+const char* wifipassword = "passphrase";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -98,26 +97,27 @@ void callback(char* topic, byte* payload, unsigned int length)
   DynamicJsonDocument jsonBuffer(1024);
   String messageReceived="";
   for (int i = 0; i < length; i++) messageReceived+=((char)payload[i]);  
-  DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
+  Serial.println("Received message:");
+  Serial.println("Topic:");
+  Serial.println(topic);
+  Serial.println("Message:");
+  Serial.println(messageReceived);
+  /*DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
   if (error)
   {
      Serial.println("parsing Domoticz/out JSON Received Message failed");
      Serial.print(F("deserializeJson() failed with code "));
      Serial.println(error.c_str());
      return;
-  }
+  }*/
   if (strcmp(topic, mqtt_mode_command_topic) == 0) 
   {
-     if( messageReceived == "heat")     {newMode = 2; Serial.println("Turn On - Heat.");}
+     if( messageReceived == "off")           {newMode = 1; Serial.println("Turn Off.");}
+     else if( messageReceived == "heat")     {newMode = 2; Serial.println("Turn On - Heat.");}
      else if( messageReceived == "cool")     {newMode = 3; Serial.println("Turn On - Cool.");}
      else if( messageReceived == "auto")     {newMode = 4; Serial.println("Turn On - Auto.");} 
      else if( messageReceived == "dry")      {newMode = 5; Serial.println("Turn On - Dry.");}
      else if( messageReceived == "fan_only") {newMode = 6; Serial.println("Turn On - Fan.");}
-  }
-  else if (strcmp(topic, mqtt_power_command_topic) == 0)
-  {
-     if( messageReceived == "off" )          {newMode = 1; Serial.println("Turn Off.");}
-     else if( messageReceived == "on" )      {newMode = 7; Serial.println("Turn On.");}
   }
   else if (strcmp(topic, mqtt_swing_mode_command_topic) == 0)
   {
@@ -137,6 +137,7 @@ void callback(char* topic, byte* payload, unsigned int length)
   else if (strcmp(topic, mqtt_temperature_command_topic) == 0)
   {
      newSetpoint = messageReceived.toFloat();
+     Serial.println("Target temperature set to " + String(newSetpoint));
   }
 }
 
@@ -156,7 +157,6 @@ void reconnect()
       // suscribe to MQTT topics
       Serial.print("Subscribe to homeassistant/.. topics. Status=");
       if ( client.subscribe(mqtt_mode_command_topic) &&
-           client.subscribe(mqtt_power_command_topic) &&
            client.subscribe(mqtt_swing_mode_command_topic) &&
            client.subscribe(mqtt_fan_mode_command_topic) &&
            client.subscribe(mqtt_temperature_command_topic))
@@ -293,29 +293,29 @@ void sendDiscovery()
  * "name": "uniquedevicename",
  * "mode_command_topic":"homeassistant/climate/loungeroom/mode", 
  * "mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "mode_state_template":"",
- * "power_command_topic":"homeassistant/climate/loungeroom/power",
+ * "mode_state_template":"{{ value_json.mode }}",
  * "swing_mode_command_topic":"homeassistant/climate/loungeroom/swing",
  * "swing_mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "swing_mode_state_template":"",
+ * "swing_mode_state_template":"{{ value_json.swing_mode }}",
  * "fan_mode_command_topic":"homeassistant/climate/loungeroom/fan",
  * "fan_mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "fan_mode_state_template":"",
+ * "fan_mode_state_template":"{{ value_json.fan_mode }}",
  * "temperature_command_topic":"homeassistant/climate/loungeroom/temperature",
  * "temperature_state_topic":"homeassistant/climate/loungeroom/state",
- * "temperature_state_template":"",
+ * "temperature_state_template":"{{ value_json.target_temp }}",
  * "current_temperature_topic":"homeassistant/climate/loungeroom/state",
- * "current_temperature_template":"",
+ * "current_temperature_template":"{{ value_json.current_temp }}",
  * "min_temp":"16",
  * "max_temp":"30",
  * "temp_step":"1.0",
  * "modes":["off", "heat", "cool", "auto", "dry", "fan_only"],
  * "swing_modes":["1", "2", "3", "4", "swing"],
- * "fan_modes":["1", "2", "3", "4"]
+ * "fan_modes":["1", "2", "3", "4"], 
+ * "unique_id":"Loungeroom"
  * }
  */
   char mqttdiscoverybuffer[2000];
-  sprintf(mqttdiscoverybuffer, "{\"name\": \"Loungeroom\", \"mode_command_topic\": \"%s\", \"mode_state_topic\": \"%s\", \"mode_state_template\": \"\", \"power_command_topic\": \"%s\", \"swing_mode_command_topic\": \"%s\", \"swing_mode_state_topic\": \"%s\", \"swing_mode_state_template\": \"\", \"fan_mode_command_topic\": \"%s\", \"fan_mode_state_topic\": \"%s\", \"fan_mode_state_template\": \"\", \"temperature_command_topic\": \"%s\", \"temperature_state_topic\": \"%s\", \"temperature_state_template\": \"\", \"current_temperature_topic\": \"%s\", \"current_temperature_template\": \"\", \"min_temp\": \"16\", \"max_temp\": \"30\", \"temp_step\": \"1.0\", \"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\", \"on_last\"], \"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], \"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], \"unique_id\": \"Loungeroom\" }", mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_power_command_topic, mqtt_swing_mode_command_topic, mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic, mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
+  sprintf(mqttdiscoverybuffer, "{\"name\":\"Loungeroom\", \"mode_command_topic\":\"%s\", \"mode_state_topic\":\"%s\", \"mode_state_template\":\"{{ value_json.mode }}\", \"swing_mode_command_topic\":\"%s\", \"swing_mode_state_topic\":\"%s\", \"swing_mode_state_template\":\"{{ value_json.swing_mode }}\", \"fan_mode_command_topic\":\"%s\", \"fan_mode_state_topic\":\"%s\", \"fan_mode_state_template\":\"{{ value_json.fan_mode }}\", \"temperature_command_topic\":\"%s\", \"temperature_state_topic\":\"%s\", \"temperature_state_template\":\"{{ value_json.target_temp }}\", \"current_temperature_topic\":\"%s\", \"current_temperature_template\":\"{{ value_json.current_temp }}\", \"min_temp\":\"16\", \"max_temp\":\"30\", \"temp_step\":\"1.0\", \"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], \"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], \"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], \"unique_id\":\"Loungeroom\" }", mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic, mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic, mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
   client.publish(mqtt_discovery_topic, mqttdiscoverybuffer);
 }
 
@@ -407,7 +407,7 @@ void sendState()
 
   // build state payload and publish to state topic
   char mqttstatebuffer[250];
-  sprintf(mqttstatebuffer, "{\"mode\": \"%s\", \"swing_mode\": \"%s\", \"fan_mode\": \"%s\", \"target_temp\": \"%s\", \"current_temp\": \"%s\" }", currentmode.c_str(), currentswing.c_str(), currentfan.c_str(), currenttargettemp.c_str(), currentroomtemp.c_str());
+  sprintf(mqttstatebuffer, "{\"mode\":\"%s\", \"swing_mode\":\"%s\", \"fan_mode\":\"%s\", \"target_temp\":\"%s\", \"current_temp\":\"%s\" }", currentmode.c_str(), currentswing.c_str(), currentfan.c_str(), currenttargettemp.c_str(), currentroomtemp.c_str());
   client.publish(mqtt_current_state_topic, mqttstatebuffer);
 }
 
