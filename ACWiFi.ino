@@ -50,8 +50,8 @@ const int idxoutdoortemp =      169;
 const int idxirremotedata =     170;
 
 // WiFi credentials
-const char* wifissid = "Go Away";
-const char* wifipassword = "away1234";
+const char* wifissid = "McKWiFi24GHz";
+const char* wifipassword = "AlfieZephyr";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -523,7 +523,7 @@ void setup()
   initOTA();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  irrecv.enableIRIn(); // start IR receiver 
+  irrecv.enableIRIn(true); // start IR receiver 
   starttime = millis();
 }
 
@@ -537,6 +537,7 @@ void loop()
     client.loop(); // MQTT client loop
     if (irrecv.decode(&results))
     {
+      Serial.println(uint64ToString(results.value, HEX).c_str());
       // create mqtt string for IR Remote Data
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%s;0\" }", idxirremotedata, uint64ToString(results.value, HEX).c_str());
       // send data to the MQTT topic
