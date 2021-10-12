@@ -543,13 +543,10 @@ void loop()
     client.loop(); // MQTT client loop
     if (irrecv.decode(&results))
     {
-      /*// Serial.println(uint64ToString(results.value, HEX).c_str());
       // create mqtt string for IR Remote Data
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%s;0\" }", idxirremotedata, uint64ToString(results.value, HEX).c_str());
       // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);      
-      irrecv.resume(); 
-      */
+      client.publish(mqtt_domoticz_topic_in, mqttbuffer);
 
       uint16_t *raw_array = resultToRawArray(&results);
       // Find out how many elements are in the array.
