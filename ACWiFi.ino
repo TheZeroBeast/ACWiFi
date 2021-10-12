@@ -528,7 +528,8 @@ void setup()
   initOTA();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  irrecv.enableIRIn(true); // start IR receiver 
+  irrecv.enableIRIn(true); // start IR receiver
+  irsend.begin();       // Start up the IR sender.
   starttime = millis();
 }
 
