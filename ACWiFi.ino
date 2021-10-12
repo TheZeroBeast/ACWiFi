@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
+#include <IRsend.h>
 #include <IRutils.h>
 
 // IO pin definitions
@@ -17,11 +18,15 @@ String devicename = "ACWiFi-" + String(ESP.getChipId());
 // set pin used for IR recv signal input
 const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
 
-// future note - GPIO4 = D2 on Wemos D1/R1 mini is IR signal out to MHI unit
+// set pin used for IR send signal output
+const uint16_t kIrLedPin  = 4; // GPIO4 = D2 on Wemos D1/R1 mini
 
 // IRremote config and init
-IRrecv irrecv(kRecvPin);
-
+const uint16_t kCaptureBufferSize = 1024;
+const uint8_t kTimeout = 50;  // Milli-Seconds
+const uint16_t kFrequency = 38000;  // in Hz. e.g. 38kHz.
+IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
+IRsend irsend(kIrLedPin);
 decode_results results;
 
 // MQTT configuration and variables
@@ -537,12 +542,24 @@ void loop()
     client.loop(); // MQTT client loop
     if (irrecv.decode(&results))
     {
-      Serial.println(uint64ToString(results.value, HEX).c_str());
+      /*// Serial.println(uint64ToString(results.value, HEX).c_str());
       // create mqtt string for IR Remote Data
       sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%s;0\" }", idxirremotedata, uint64ToString(results.value, HEX).c_str());
       // send data to the MQTT topic
       client.publish(mqtt_domoticz_topic_in, mqttbuffer);      
       irrecv.resume(); 
+      */
+
+      uint16_t *raw_array = resultToRawArray(&results);
+      // Find out how many elements are in the array.
+      uint16_t length = getCorrectedRawLength(&results);
+      // Send it out via the IR LED circuit.
+      irsend.sendRaw(raw_array, length, kFrequency);
+      // Resume capturing IR messages. It was not restarted until after we sent
+      // the message so we didn't capture our own message.
+      irrecv.resume();
+      // Deallocate the memory allocated by resultToRawArray().
+      delete [] raw_array;
     }
     if (newPayloadReceived && millis() - starttime > 1000)
     {
