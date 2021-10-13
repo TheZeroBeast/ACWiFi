@@ -24,9 +24,8 @@ const uint16_t kIrLedPin  = 4; // GPIO4 = D2 on Wemos D1/R1 mini
 // IRremote config and init
 const uint16_t kCaptureBufferSize = 1024;
 const uint8_t kTimeout = 50;  // Milli-Seconds
-const uint16_t kFrequency = 38000;  // in Hz. e.g. 38kHz.
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
-IRsend irsend(kIrLedPin);
+IRsend irsend(kIrLedPin, true, false);
 decode_results results;
 
 // MQTT configuration and variables
@@ -552,7 +551,7 @@ void loop()
       // Find out how many elements are in the array.
       uint16_t length = getCorrectedRawLength(&results);
       // Send it out via the IR LED circuit.
-      irsend.sendRaw(raw_array, length, kFrequency);
+      irsend.sendRaw(raw_array, length, 0);
       // Resume capturing IR messages. It was not restarted until after we sent
       // the message so we didn't capture our own message.
       irrecv.resume();
