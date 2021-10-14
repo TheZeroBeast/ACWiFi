@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
+#include <IRsend.h>
 #include <IRutils.h>
 
 // IO pin definitions
@@ -17,10 +18,14 @@ String devicename = "ACWiFi-" + String(ESP.getChipId());
 // set pin used for IR recv signal input
 const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
 
-// future note - GPIO4 = D2 on Wemos D1/R1 mini is IR signal out to MHI unit
+// set pin used for IR send signal output
+const uint16_t kIrLedPin  = 4; // GPIO4 = D2 on Wemos D1/R1 mini
 
 // IRremote config and init
-IRrecv irrecv(kRecvPin);
+const uint16_t kCaptureBufferSize = 1024;
+const uint8_t kTimeout = 50;  // Milli-Seconds
+IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
+IRsend irsend(kIrLedPin, true, false);
 decode_results results;
 
 // MQTT configuration and variables
@@ -479,7 +484,8 @@ void setup()
   initOTA();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  irrecv.enableIRIn(); // start IR receiver 
+  irrecv.enableIRIn(true); // start IR receiver
+  irsend.begin();       // Start up the IR sender.
   starttime = millis();  
 }
 
@@ -492,15 +498,19 @@ void loop()
     if (!client.connected()) reconnect(); // Reconnect to MQTT broker if required
     sendDiscovery();
     client.loop(); // MQTT client loop
-    // Remove IR decode to string and push to domoticz as unsure how to integrate this into Home Assistant Climate Integration?
-    /*if (irrecv.decode(&results))
+    if (irrecv.decode(&results))
     {
-      // create mqtt string for IR Remote Data
-      sprintf(mqttbuffer, "{ \"idx\" : %d, \"nvalue\" : 0, \"svalue\" : \"%s;0\" }", idxirremotedata, uint64ToString(results.value, HEX).c_str());
-      // send data to the MQTT topic
-      client.publish(mqtt_domoticz_topic_in, mqttbuffer);      
-      irrecv.resume(); 
-    }*/
+      uint16_t *raw_array = resultToRawArray(&results);
+      // Find out how many elements are in the array.
+      uint16_t length = getCorrectedRawLength(&results);
+      // Send it out via the IR LED circuit.
+      irsend.sendRaw(raw_array, length, 0);
+      // Resume capturing IR messages. It was not restarted until after we sent
+      // the message so we didn't capture our own message.
+      irrecv.resume();
+      // Deallocate the memory allocated by resultToRawArray().
+      delete [] raw_array;
+    }
     if (millis() - starttime > 1000)
     {
       sendState();
