@@ -13,9 +13,7 @@
 #define MISO_PIN 12
 
 // set devicename, used for ArduinoOTA
-String devicename = "ACWiFi-" + String(ESP.getChipId());
-
-String mqttuniquename = "office";
+String devicename = "ACWiFi-office";
 
 // set pin used for IR recv signal input
 const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
@@ -34,12 +32,12 @@ decode_results results;
 const char* mqtt_server = "192.168.1.199";
 const char* mqtt_username = "mqtt";
 const char* mqtt_password = "mqtt";
-const char* mqtt_discovery_topic =              ("homeassistant/climate/" + mqttuniquename + "/office/config").c_str();
-const char* mqtt_mode_command_topic =           ("homeassistant/climate/" + mqttuniquename + "/mode").c_str();
-const char* mqtt_swing_mode_command_topic =     ("homeassistant/climate/" + mqttuniquename + "/swing").c_str();
-const char* mqtt_fan_mode_command_topic =       ("homeassistant/climate/" + mqttuniquename + "/fan").c_str();
-const char* mqtt_temperature_command_topic =    ("homeassistant/climate/" + mqttuniquename + "/temperature").c_str();
-const char* mqtt_current_state_topic =          ("homeassistant/climate/" + mqttuniquename + "/state").c_str();
+const char* mqtt_discovery_topic =              "homeassistant/climate/office/config";
+const char* mqtt_mode_command_topic =           "homeassistant/climate/office/mode";
+const char* mqtt_swing_mode_command_topic =     "homeassistant/climate/office/swing";
+const char* mqtt_fan_mode_command_topic =       "homeassistant/climate/office/fan";
+const char* mqtt_temperature_command_topic =    "homeassistant/climate/office/temperature";
+const char* mqtt_current_state_topic =          "homeassistant/climate/office/state";
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -147,7 +145,7 @@ void reconnect()
   {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("office", mqtt_username, mqtt_password))
+    if (client.connect("ACWiFi-office", mqtt_username, mqtt_password))
     {
       Serial.println("connected to MQTT broker!");
       
@@ -274,29 +272,28 @@ void exchange_payloads()
 void sendDiscovery()
 {
   char mqttdiscoverybuffer[2000];
-  sprintf(mqttdiscoverybuffer, (
-   "{\"name\":\"" + mqttuniquename + "\", " +
-    "\"mode_command_topic\":\"%s\", " +
-    "\"mode_state_topic\":\"%s\", " +
-    "\"mode_state_template\":\"{{ value_json.mode }}\", " +
-    "\"swing_mode_command_topic\":\"%s\", " +
-    "\"swing_mode_state_topic\":\"%s\", " +
-    "\"swing_mode_state_template\":\"{{ value_json.swing_mode }}\", " +
-    "\"fan_mode_command_topic\":\"%s\", " +
-    "\"fan_mode_state_topic\":\"%s\", " +
-    "\"fan_mode_state_template\":\"{{ value_json.fan_mode }}\", " +
-    "\"temperature_command_topic\":\"%s\", " +
-    "\"temperature_state_topic\":\"%s\", " +
-    "\"temperature_state_template\":\"{{ value_json.target_temp }}\", " +
-    "\"current_temperature_topic\":\"%s\", " +
-    "\"current_temperature_template\":\"{{ value_json.current_temp }}\", " +
-    "\"min_temp\":\"16\", " +
-    "\"max_temp\":\"30\", " +
-    "\"temp_step\":\"1.0\", " +
-    "\"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], " +
-    "\"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], " +
-    "\"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], " +
-    "\"unique_id\":\"" + mqttuniquename + "\" }").c_str(),
+  sprintf(mqttdiscoverybuffer, "{\"name\":\"office\", "
+                                "\"mode_command_topic\":\"%s\", "
+                                "\"mode_state_topic\":\"%s\", "
+                                "\"mode_state_template\":\"{{ value_json.mode }}\", "
+                                "\"swing_mode_command_topic\":\"%s\", "
+                                "\"swing_mode_state_topic\":\"%s\", "
+                                "\"swing_mode_state_template\":\"{{ value_json.swing_mode }}\", "
+                                "\"fan_mode_command_topic\":\"%s\", "
+                                "\"fan_mode_state_topic\":\"%s\", "
+                                "\"fan_mode_state_template\":\"{{ value_json.fan_mode }}\", "
+                                "\"temperature_command_topic\":\"%s\", "
+                                "\"temperature_state_topic\":\"%s\", "
+                                "\"temperature_state_template\":\"{{ value_json.target_temp }}\", "
+                                "\"current_temperature_topic\":\"%s\", "
+                                "\"current_temperature_template\":\"{{ value_json.current_temp }}\", "
+                                "\"min_temp\":\"16\", "
+                                "\"max_temp\":\"30\", "
+                                "\"temp_step\":\"1.0\", "
+                                "\"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], "
+                                "\"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], "
+                                "\"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], "
+                                "\"unique_id\":\"office\" }",
     mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic,
     mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic,
     mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
