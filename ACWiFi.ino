@@ -15,6 +15,8 @@
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-" + String(ESP.getChipId());
 
+String mqttuniquename = "office";
+
 // set pin used for IR recv signal input
 const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
 
@@ -29,16 +31,15 @@ IRsend irsend(kIrLedPin, true, false);
 decode_results results;
 
 // MQTT configuration and variables
-// Important - Please search and replace all instances of the word "loungeroom" with your unique device name relevant to your installation!
-const char* mqtt_server = "mqttserverip";
+const char* mqtt_server = "192.168.1.199";
 const char* mqtt_username = "mqtt";
 const char* mqtt_password = "mqtt";
-const char* mqtt_discovery_topic =              "homeassistant/climate/loungeroom/config";
-const char* mqtt_mode_command_topic =           "homeassistant/climate/loungeroom/mode";
-const char* mqtt_swing_mode_command_topic =     "homeassistant/climate/loungeroom/swing";
-const char* mqtt_fan_mode_command_topic =       "homeassistant/climate/loungeroom/fan";
-const char* mqtt_temperature_command_topic =    "homeassistant/climate/loungeroom/temperature";
-const char* mqtt_current_state_topic =          "homeassistant/climate/loungeroom/state";
+const char* mqtt_discovery_topic =              ("homeassistant/climate/" + mqttuniquename + "/office/config").c_str();
+const char* mqtt_mode_command_topic =           ("homeassistant/climate/" + mqttuniquename + "/mode").c_str();
+const char* mqtt_swing_mode_command_topic =     ("homeassistant/climate/" + mqttuniquename + "/swing").c_str();
+const char* mqtt_fan_mode_command_topic =       ("homeassistant/climate/" + mqttuniquename + "/fan").c_str();
+const char* mqtt_temperature_command_topic =    ("homeassistant/climate/" + mqttuniquename + "/temperature").c_str();
+const char* mqtt_current_state_topic =          ("homeassistant/climate/" + mqttuniquename + "/state").c_str();
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -46,8 +47,8 @@ PubSubClient client(espClient);
 int starttime = 0;
 
 // WiFi credentials
-const char* wifissid = "ssid";
-const char* wifipassword = "passphrase";
+const char* wifissid = "McKWiFi24GHz";
+const char* wifipassword = "AlfieZephyr";
 
 byte frame_no = 1; // Counter for how many times a frame variation has been sent (max. = 48)
 
@@ -107,14 +108,6 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.println(topic);
   Serial.println("Message:");
   Serial.println(messageReceived);
-  /*DeserializationError error = deserializeJson(jsonBuffer, messageReceived);
-  if (error)
-  {
-     Serial.println("parsing Domoticz/out JSON Received Message failed");
-     Serial.print(F("deserializeJson() failed with code "));
-     Serial.println(error.c_str());
-     return;
-  }*/
   if (strcmp(topic, mqtt_mode_command_topic) == 0) 
   {
      if( messageReceived == "off")           {newMode = 1; Serial.println("Turn Off.");}
@@ -154,7 +147,7 @@ void reconnect()
   {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ACWiFi", mqtt_username, mqtt_password))
+    if (client.connect("office", mqtt_username, mqtt_password))
     {
       Serial.println("connected to MQTT broker!");
       
@@ -272,18 +265,6 @@ void exchange_payloads()
     }
 
     if (mosi_frame[byte_cnt] != MOSI_byte) {
-      /*if (byte_cnt == 3)
-      {
-        if ((mosi_frame[byte_cnt] & 0b00011101) != (MOSI_byte & 0b00011101)) updatedMode = true;
-        if ((mosi_frame[byte_cnt] & 0b01000000) != (MOSI_byte & 0b01000000)) updatedVanes = true;
-      }
-      else if (byte_cnt == 4)
-      {
-        if ((mosi_frame[byte_cnt] & 0b00110000) != (MOSI_byte & 0b00110000)) updatedVanes = true;
-        if ((mosi_frame[byte_cnt] & 0b00000111) != (MOSI_byte & 0b00000111)) updatedFanspeed = true;
-      }
-      else if (byte_cnt == 5 && mosi_frame[byte_cnt] != MOSI_byte) updatedSetpoint = true;
-      else if (byte_cnt == 9 && (mosi_frame[byte_cnt] & 0b01000000) != (MOSI_byte & 0b01000000)) updatedFanspeed = true;*/
       newPayloadReceived = true;
       mosi_frame[byte_cnt] = MOSI_byte;
     }
@@ -292,35 +273,33 @@ void exchange_payloads()
 
 void sendDiscovery()
 {
-  /*
- * DISCOVERY CONFIGURATION PAYLOAD - HOME ASSISTANT CLIMATE INTEGRATION
- * {
- * "name": "uniquedevicename",
- * "mode_command_topic":"homeassistant/climate/loungeroom/mode", 
- * "mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "mode_state_template":"{{ value_json.mode }}",
- * "swing_mode_command_topic":"homeassistant/climate/loungeroom/swing",
- * "swing_mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "swing_mode_state_template":"{{ value_json.swing_mode }}",
- * "fan_mode_command_topic":"homeassistant/climate/loungeroom/fan",
- * "fan_mode_state_topic":"homeassistant/climate/loungeroom/state",
- * "fan_mode_state_template":"{{ value_json.fan_mode }}",
- * "temperature_command_topic":"homeassistant/climate/loungeroom/temperature",
- * "temperature_state_topic":"homeassistant/climate/loungeroom/state",
- * "temperature_state_template":"{{ value_json.target_temp }}",
- * "current_temperature_topic":"homeassistant/climate/loungeroom/state",
- * "current_temperature_template":"{{ value_json.current_temp }}",
- * "min_temp":"16",
- * "max_temp":"30",
- * "temp_step":"1.0",
- * "modes":["off", "heat", "cool", "auto", "dry", "fan_only"],
- * "swing_modes":["1", "2", "3", "4", "swing"],
- * "fan_modes":["1", "2", "3", "4"], 
- * "unique_id":"Loungeroom"
- * }
- */
   char mqttdiscoverybuffer[2000];
-  sprintf(mqttdiscoverybuffer, "{\"name\":\"Loungeroom\", \"mode_command_topic\":\"%s\", \"mode_state_topic\":\"%s\", \"mode_state_template\":\"{{ value_json.mode }}\", \"swing_mode_command_topic\":\"%s\", \"swing_mode_state_topic\":\"%s\", \"swing_mode_state_template\":\"{{ value_json.swing_mode }}\", \"fan_mode_command_topic\":\"%s\", \"fan_mode_state_topic\":\"%s\", \"fan_mode_state_template\":\"{{ value_json.fan_mode }}\", \"temperature_command_topic\":\"%s\", \"temperature_state_topic\":\"%s\", \"temperature_state_template\":\"{{ value_json.target_temp }}\", \"current_temperature_topic\":\"%s\", \"current_temperature_template\":\"{{ value_json.current_temp }}\", \"min_temp\":\"16\", \"max_temp\":\"30\", \"temp_step\":\"1.0\", \"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], \"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], \"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], \"unique_id\":\"Loungeroom\" }", mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic, mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic, mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
+  sprintf(mqttdiscoverybuffer, (
+   "{\"name\":\"" + mqttuniquename + "\", " +
+    "\"mode_command_topic\":\"%s\", " +
+    "\"mode_state_topic\":\"%s\", " +
+    "\"mode_state_template\":\"{{ value_json.mode }}\", " +
+    "\"swing_mode_command_topic\":\"%s\", " +
+    "\"swing_mode_state_topic\":\"%s\", " +
+    "\"swing_mode_state_template\":\"{{ value_json.swing_mode }}\", " +
+    "\"fan_mode_command_topic\":\"%s\", " +
+    "\"fan_mode_state_topic\":\"%s\", " +
+    "\"fan_mode_state_template\":\"{{ value_json.fan_mode }}\", " +
+    "\"temperature_command_topic\":\"%s\", " +
+    "\"temperature_state_topic\":\"%s\", " +
+    "\"temperature_state_template\":\"{{ value_json.target_temp }}\", " +
+    "\"current_temperature_topic\":\"%s\", " +
+    "\"current_temperature_template\":\"{{ value_json.current_temp }}\", " +
+    "\"min_temp\":\"16\", " +
+    "\"max_temp\":\"30\", " +
+    "\"temp_step\":\"1.0\", " +
+    "\"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], " +
+    "\"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], " +
+    "\"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], " +
+    "\"unique_id\":\"" + mqttuniquename + "\" }").c_str(),
+    mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic,
+    mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic,
+    mqtt_temperature_command_topic, mqtt_current_state_topic, mqtt_current_state_topic);
   client.publish(mqtt_discovery_topic, mqttdiscoverybuffer);
 }
 
@@ -511,24 +490,21 @@ void loop()
       // Deallocate the memory allocated by resultToRawArray().
       delete [] raw_array;
     }
-    if (millis() - starttime > 1000)
+    if (newPayloadReceived && millis() - starttime > 1000)
     {
       sendState();
-      if (newPayloadReceived)
-      {
-        // Debug message
-        //Serial.println(mqttbuffer);
-        Serial.println("     Byte03   Byte04   Byte05   Byte06   Byte07   Byte08   Byte09   Byte10   Byte11   Byte12   Byte13   Byte14   Byte15   Byte16   Byte17 ");
-        Serial.print("IN :");
-        for (uint8_t i = 3; i < 18; i++)
-          Serial.printf("%s,", toBin(mosi_frame[i]).c_str());
-        Serial.println();
-        Serial.print("OUT:");
-        for (uint8_t i = 3; i < 18; i++)
-          Serial.printf("%s,", toBin(miso_frame[i]).c_str());
-        Serial.println();
-        newPayloadReceived = false;
-      }
+      // Debug message
+      //Serial.println(mqttbuffer);
+      Serial.println("     Byte03   Byte04   Byte05   Byte06   Byte07   Byte08   Byte09   Byte10   Byte11   Byte12   Byte13   Byte14   Byte15   Byte16   Byte17 ");
+      Serial.print("IN :");
+      for (uint8_t i = 3; i < 18; i++)
+        Serial.printf("%s,", toBin(mosi_frame[i]).c_str());
+      Serial.println();
+      Serial.print("OUT:");
+      for (uint8_t i = 3; i < 18; i++)
+        Serial.printf("%s,", toBin(miso_frame[i]).c_str());
+      Serial.println();
+      newPayloadReceived = false;
       starttime = millis();
     }
   }
