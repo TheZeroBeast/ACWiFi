@@ -102,9 +102,9 @@ void callback(char* topic, byte* payload, unsigned int length)
   String messageReceived="";
   for (int i = 0; i < length; i++) messageReceived+=((char)payload[i]);  
   Serial.println("Received message:");
-  Serial.println("Topic:");
+  Serial.print("Topic: ");
   Serial.println(topic);
-  Serial.println("Message:");
+  Serial.print("Message: ");
   Serial.println(messageReceived);
   if (strcmp(topic, mqtt_mode_command_topic) == 0) 
   {
@@ -309,73 +309,43 @@ void sendState()
   String currentroomtemp = "";
 
   if (!(mosi_frame[3] & 0b00000001))
-  {
     currentmode = "off";
-  }
   else if (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) ==
           (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) & mosi_frame[3]))
-  {
     currentmode = "heat";
-  }
   else if (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) ==
           (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) & mosi_frame[3]))
-  {
     currentmode = "fan";
-  }
   else if (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) ==
           (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) & mosi_frame[3]))
-  {
     currentmode = "dry";
-  }
   else if (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) ==
           (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) & mosi_frame[3]) &&
           (mosi_frame[3] & 0b00001000) != 0b00001000)
-  {
     currentmode = "auto";
-  }
   else if (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) ==
           (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) & mosi_frame[3]))
-  {
     currentmode = "cool";
-  }
 
   if (0b01000000 & mosi_frame[3])
-  {
       currentswing = "swing";
-  }
   else if ((0b00100000 & mosi_frame[4]) && (0b00010000 & mosi_frame[4]))
-  {
       currentswing = "4";
-  }
   else if (0b00100000 & mosi_frame[4])
-  {
       currentswing = "3";
-  }
   else if (0b00010000 & mosi_frame[4])
-  {
       currentswing = "2";
-  }
   else if (!(0b00110000 & mosi_frame[4]))
-  {
       currentswing = "1";
-  }
 
   if (!(mosi_frame[4] & 0b00000111))
-  {
     currentfan = "1";
-  }
   else if (mosi_frame[4] & 0b00000001)
-  {
     currentfan = "2";
-  }
   else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
-  {
     currentfan = "3";
-  }
   else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
-  {
     currentfan = "4";
-  }
 
   int tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
   currenttargettemp = String(tempsetpoint).c_str();
@@ -388,7 +358,8 @@ void sendState()
 
   // build state payload and publish to state topic
   char mqttstatebuffer[250];
-  sprintf(mqttstatebuffer, "{\"mode\":\"%s\", \"swing_mode\":\"%s\", \"fan_mode\":\"%s\", \"target_temp\":\"%s\", \"current_temp\":\"%s\" }", currentmode.c_str(), currentswing.c_str(), currentfan.c_str(), currenttargettemp.c_str(), currentroomtemp.c_str());
+  sprintf(mqttstatebuffer, "{\"mode\":\"%s\", \"swing_mode\":\"%s\", \"fan_mode\":\"%s\", \"target_temp\":\"%s\", \"current_temp\":\"%s\""
+  " }", currentmode.c_str(), currentswing.c_str(), currentfan.c_str(), currenttargettemp.c_str(), currentroomtemp.c_str());
   client.publish(mqtt_current_state_topic, mqttstatebuffer);
 }
 
@@ -421,6 +392,7 @@ void initWiFi()
   Serial.println(WiFi.localIP());
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
+  digitalWrite(LED_BUILTIN, HIGH);
   bool setSleepMode(WIFI_MODEM_SLEEP); // set modem sleep mode
 }
 
@@ -451,8 +423,8 @@ void setup()
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
-  pinMode(16, OUTPUT); // turn on level shifter
-  digitalWrite(16, 1); // turn on level shifter
+  //pinMode(16, OUTPUT); // turn on level shifter
+  //digitalWrite(16, 1); // turn on level shifter
   pinMode(SCK_PIN, INPUT);
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
@@ -472,7 +444,6 @@ void loop()
   {
     ArduinoOTA.handle();
     if (!client.connected()) reconnect(); // Reconnect to MQTT broker if required
-    sendDiscovery();
     client.loop(); // MQTT client loop
     if (irrecv.decode(&results))
     {
@@ -489,6 +460,7 @@ void loop()
     }
     if (newPayloadReceived && millis() - starttime > 1000)
     {
+      sendDiscovery();
       sendState();
       // Debug message
       //Serial.println(mqttbuffer);
