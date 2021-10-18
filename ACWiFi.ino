@@ -43,6 +43,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 int starttime = 0;
+int starttimediscovery = 0;
 
 // WiFi credentials
 const char* wifissid = "McKWiFi24GHz";
@@ -434,7 +435,9 @@ void setup()
   client.setCallback(callback);
   irrecv.enableIRIn(true); // start IR receiver
   irsend.begin();       // Start up the IR sender.
-  starttime = millis();  
+  sendDiscovery();
+  starttime = millis();
+  starttimediscovery = millis();
 }
 
 void loop() 
@@ -458,9 +461,9 @@ void loop()
       // Deallocate the memory allocated by resultToRawArray().
       delete [] raw_array;
     }
+    if (millis() - starttimediscovery > 30000) { sendDiscovery(); starttimediscovery = millis(); }
     if (newPayloadReceived && millis() - starttime > 1000)
     {
-      sendDiscovery();
       sendState();
       // Debug message
       //Serial.println(mqttbuffer);
