@@ -5,6 +5,7 @@
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
 #include <IRsend.h>
+#include <ir_MitsubishiHeavy.h>
 #include <IRutils.h>
 
 // IO pin definitions
@@ -26,6 +27,7 @@ const uint16_t kCaptureBufferSize = 1024;
 const uint8_t kTimeout = 50;  // Milli-Seconds
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
 IRsend irsend(kIrLedPin, true, false);
+IRMitsubishiHeavy152Ac ac(kIrLedPin, true, false);
 decode_results results;
 
 // MQTT configuration and variables
@@ -41,6 +43,13 @@ const char* mqtt_current_state_topic =          "homeassistant/climate/office/st
 char mqttbuffer[60];
 WiFiClient espClient;
 PubSubClient client(espClient);
+String currentmode = "";
+String currentswing = "";
+String currentfan = "";
+String currenttargettemp = "";
+String currentroomtemp = "";
+bool   current3D = false;
+bool   new3D = false;
 
 int starttime = 0;
 int starttimediscovery = 0;
@@ -107,14 +116,14 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.println(topic);
   Serial.print("Message: ");
   Serial.println(messageReceived);
-  if (strcmp(topic, mqtt_mode_command_topic) == 0) 
+  if (strcmp(topic, mqtt_mode_command_topic) == 0)
   {
-     if( messageReceived == "off")           {newMode = 1; Serial.println("Turn Off.");}
-     else if( messageReceived == "heat")     {newMode = 2; Serial.println("Turn On - Heat.");}
-     else if( messageReceived == "cool")     {newMode = 3; Serial.println("Turn On - Cool.");}
-     else if( messageReceived == "auto")     {newMode = 4; Serial.println("Turn On - Auto.");} 
-     else if( messageReceived == "dry")      {newMode = 5; Serial.println("Turn On - Dry.");}
-     else if( messageReceived == "fan_only") {newMode = 6; Serial.println("Turn On - Fan.");}
+     if( messageReceived == "Off")           {newMode = 1; Serial.println("Turn Off.");}
+     else if( messageReceived == "Heat")     {newMode = 2; Serial.println("Turn On - Heat.");}
+     else if( messageReceived == "Cool")     {newMode = 3; Serial.println("Turn On - Cool.");}
+     else if( messageReceived == "Auto")     {newMode = 4; Serial.println("Turn On - Auto.");} 
+     else if( messageReceived == "Dry")      {newMode = 5; Serial.println("Turn On - Dry.");}
+     else if( messageReceived == "Fan")      {newMode = 6; Serial.println("Turn On - Fan.");}
   }
   else if (strcmp(topic, mqtt_swing_mode_command_topic) == 0)
   {
@@ -126,10 +135,12 @@ void callback(char* topic, byte* payload, unsigned int length)
   }
   else if (strcmp(topic, mqtt_fan_mode_command_topic) == 0)
   {
-     if( messageReceived == "1" )            {newFanspeed = 1; Serial.println("Fan speed set to 1.");}
-     else if( messageReceived == "2" )       {newFanspeed = 2; Serial.println("Fan speed set to 2.");}
-     else if( messageReceived == "3" )       {newFanspeed = 3; Serial.println("Fan speed set to 3.");}
-     else if( messageReceived == "4" )       {newFanspeed = 4; Serial.println("Fan speed set to 4.");} 
+    current3D = false;
+     if( messageReceived == "3DAuto" )       {new3D    = true; Serial.println("Fan speed set to 3DAuto.");}
+     else if( messageReceived == "Auto" )    {newFanspeed = 4; Serial.println("Fan speed set to Auto.");}
+     else if( messageReceived == "Low" )     {newFanspeed = 1; Serial.println("Fan speed set to 2.");}
+     else if( messageReceived == "Med" )     {newFanspeed = 2; Serial.println("Fan speed set to 3.");}
+     else if( messageReceived == "High" )    {newFanspeed = 3; Serial.println("Fan speed set to 4.");}
   }
   else if (strcmp(topic, mqtt_temperature_command_topic) == 0)
   {
@@ -291,9 +302,9 @@ void sendDiscovery()
                                 "\"min_temp\":\"16\", "
                                 "\"max_temp\":\"30\", "
                                 "\"temp_step\":\"1.0\", "
-                                "\"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], "
+                                "\"modes\":[\"Off\", \"Heat\", \"Cool\", \"Auto\", \"Dry\", \"Fan\"], "
                                 "\"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], "
-                                "\"fan_modes\":[\"1\", \"2\", \"3\", \"4\"], "
+                                "\"fan_modes\":[\"3DAuto\", \"Auto\", \"Low\", \"Med\", \"High\", \"Max\", \"Econo\", \"Turbo\"], "
                                 "\"unique_id\":\"office\" }",
     mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic,
     mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic,
@@ -303,30 +314,30 @@ void sendDiscovery()
 
 void sendState()
 {
-  String currentmode = "";
+  /*String currentmode = "";
   String currentswing = "";
   String currentfan = "";
   String currenttargettemp = "";
-  String currentroomtemp = "";
+  String currentroomtemp = "";*/
 
   if (!(mosi_frame[3] & 0b00000001))
-    currentmode = "off";
+    currentmode = "Off";
   else if (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) ==
           (((modeMask[0][0]^modeMask[2][0])&modeMask[2][1]) & mosi_frame[3]))
-    currentmode = "heat";
+    currentmode = "Heat";
   else if (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) ==
           (((modeMask[0][0]^modeMask[6][0])&modeMask[6][1]) & mosi_frame[3]))
-    currentmode = "fan";
+    currentmode = "Fan";
   else if (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) ==
           (((modeMask[0][0]^modeMask[5][0])&modeMask[5][1]) & mosi_frame[3]))
-    currentmode = "dry";
+    currentmode = "Dry";
   else if (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) ==
           (((modeMask[0][0]^modeMask[4][0])&modeMask[4][1]) & mosi_frame[3]) &&
           (mosi_frame[3] & 0b00001000) != 0b00001000)
-    currentmode = "auto";
+    currentmode = "Auto";
   else if (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) ==
           (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) & mosi_frame[3]))
-    currentmode = "cool";
+    currentmode = "Cool";
 
   if (0b01000000 & mosi_frame[3])
       currentswing = "swing";
@@ -338,15 +349,16 @@ void sendState()
       currentswing = "2";
   else if (!(0b00110000 & mosi_frame[4]))
       currentswing = "1";
-
-  if (!(mosi_frame[4] & 0b00000111))
-    currentfan = "1";
+  if (current3D)
+    currentfan = "3DAuto";
+  else if (!(mosi_frame[4] & 0b00000111))
+    currentfan = "Low";
   else if (mosi_frame[4] & 0b00000001)
-    currentfan = "2";
+    currentfan = "Med";
   else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
-    currentfan = "3";
+    currentfan = "High";
   else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
-    currentfan = "4";
+    currentfan = "Auto";
 
   int tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
   currenttargettemp = String(tempsetpoint).c_str();
@@ -364,6 +376,34 @@ void sendState()
   client.publish(mqtt_current_state_topic, mqttstatebuffer);
 }
 
+void sendPendingIRCmd()
+{
+  if (new3D)
+  {
+    new3D = false;
+    current3D = true;
+    irrecv.disableIRIn();
+    /*
+    String currentmode = "";
+    String currentswing = "";
+    String currentfan = "";
+    String currenttargettemp = "";
+    String currentroomtemp = "";*/
+
+    if (currentmode != "off") ac.setPower(true);
+    else ac.setPower(false);
+    if( currentmode == "Heat")          ac.setMode(kMitsubishiHeavyHeat);
+    else if( currentmode == "Cool")     ac.setMode(kMitsubishiHeavyCool);
+    else if( currentmode == "Auto")     ac.setMode(kMitsubishiHeavyAuto); 
+    else if( currentmode == "Dry")      ac.setMode(kMitsubishiHeavyDry);
+    else if( currentmode == "Fan") ac.setMode(kMitsubishiHeavyFan);
+    ac.setTemp(currentroomtemp.toInt());
+    ac.set3D(true);
+    ac.send();
+    irrecv.enableIRIn(true);
+  }
+}
+
 String toBin(byte toBin)
 {
   String temp = "";
@@ -375,7 +415,7 @@ String toBin(byte toBin)
   } return temp;
 }
 
-void initWiFi() 
+void initWiFi()
 {
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifissid, wifipassword);
@@ -443,6 +483,7 @@ void setup()
 void loop() 
 {
   exchange_payloads();
+  sendPendingIRCmd();
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.handle();
