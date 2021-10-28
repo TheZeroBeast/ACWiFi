@@ -207,12 +207,8 @@ void exchange_payloads()
     
     case 1:                                                                                               //<FRAME 24> Current frame variation has been sent 24 times -> clear clock bit in bit field 18 for the next 24 frames
       bitSet(miso_frame[17], 2);                                                                          //Clear clock bit 3 in bitfield 18-> update checksum and resend for 24 cycles
-      if (verify_checksum())                                                                               //Verify checksum
-      {
+      if (verify_checksum())                                                                              //Verify checksum
         memcpy(&mosi_bitfield4_10, &mosi_frame[3], 7);                                                    //Get bitfields 4-10 from the last MHI SPI frame to use for the upcoming tx_SPIframe update
-        checksumError = false;
-      }
-      else checksumError = true;                                                                                             //<FRAME 48> Current frame variation has been send 48 times -> construct next frame variant using most recent bit fields 4-10 collected in frame 47
       frame_no = 0;
       
       //******************* CONSTRUCTION OF UPDATED BIT FIELDS *******************
@@ -278,6 +274,9 @@ void exchange_payloads()
       newPayloadReceived = true;
       mosi_frame[byte_cnt] = MOSI_byte;
     }
+
+    if(verify_checksum()) checksumError = false;
+    else checksumError = true;
   }
 }
 
@@ -490,7 +489,7 @@ void loop()
       delete [] raw_array;
     }
     if (millis() - starttimediscovery > 30000) { sendDiscovery(); starttimediscovery = millis(); }
-    if ((newPayloadReceived && millis() - starttime > 1000) || millis() - starttimediscovery > 30000)
+    if ((newPayloadReceived && millis() - starttime > 1000 && !checksumError) || (millis() - starttimediscovery > 30000 && !checksumError))
     {
       sendState();
       // Debug message
