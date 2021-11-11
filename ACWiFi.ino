@@ -50,6 +50,8 @@ String currenttargettemp = "";
 String currentroomtemp = "";
 bool   current3D = false;
 bool   new3D = false;
+bool   currentFanAuto = false;
+bool   newFanAuto = false;
 
 int starttime = 0;
 int starttimediscovery = 0;
@@ -127,20 +129,22 @@ void callback(char* topic, byte* payload, unsigned int length)
   }
   else if (strcmp(topic, mqtt_swing_mode_command_topic) == 0)
   {
-     if( messageReceived == "1" )            {newVanes = 1; Serial.println("Vanes set to 1.");}
-     else if( messageReceived == "2" )       {newVanes = 2; Serial.println("Vanes set to 2.");}
-     else if( messageReceived == "3" )       {newVanes = 3; Serial.println("Vanes set to 3.");}
-     else if( messageReceived == "4" )       {newVanes = 4; Serial.println("Vanes set to 4.");} 
-     else if( messageReceived == "swing" )   {newVanes = 5; Serial.println("Vanes set to Swing.");}
+     current3D = false;
+     if ( messageReceived == "Lowest" )      {newVanes = 1; Serial.println("Vanes set to Lowest.");}
+     else if( messageReceived == "Low" )     {newVanes = 2; Serial.println("Vanes set to Low.");}
+     else if( messageReceived == "Middle" )  {newVanes = 3; Serial.println("Vanes set to Middle.");}
+     else if( messageReceived == "High" )    {newVanes = 4; Serial.println("Vanes set to High.");} 
+     else if( messageReceived == "Swing" )   {newVanes = 5; Serial.println("Vanes set to Swing.");}
+     else if( messageReceived == "3DAuto" )  {new3D = true; Serial.println("Vanes set to 3DAuto.");}
   }
   else if (strcmp(topic, mqtt_fan_mode_command_topic) == 0)
   {
-    current3D = false;
-     if( messageReceived == "3DAuto" )       {new3D    = true; Serial.println("Fan speed set to 3DAuto.");}
-     else if( messageReceived == "Auto" )    {newFanspeed = 4; Serial.println("Fan speed set to Auto.");}
-     else if( messageReceived == "Low" )     {newFanspeed = 1; Serial.println("Fan speed set to Low.");}
+    currentFanAuto = false;
+     if ( messageReceived == "Low" )         {newFanspeed = 1; Serial.println("Fan speed set to Low.");}
      else if( messageReceived == "Med" )     {newFanspeed = 2; Serial.println("Fan speed set to Med.");}
      else if( messageReceived == "High" )    {newFanspeed = 3; Serial.println("Fan speed set to High.");}
+     else if( messageReceived == "Max" )     {newFanspeed = 4; Serial.println("Fan speed set to Auto.");}
+     else if( messageReceived == "Auto" )    {newFanAuto = true; Serial.println("Fan speed set to Auto.");}
   }
   else if (strcmp(topic, mqtt_temperature_command_topic) == 0)
   {
@@ -302,8 +306,8 @@ void sendDiscovery()
                                 "\"max_temp\":\"30\", "
                                 "\"temp_step\":\"1.0\", "
                                 "\"modes\":[\"off\", \"heat\", \"cool\", \"auto\", \"dry\", \"fan_only\"], "
-                                "\"swing_modes\":[\"1\", \"2\", \"3\", \"4\", \"swing\"], "
-                                "\"fan_modes\":[\"3DAuto\", \"Auto\", \"Low\", \"Med\", \"High\"], "
+                                "\"swing_modes\":[\"Lowest\", \"Low\", \"Middle\", \"High\", \"Swing\", \"3DAuto\"], "
+                                "\"fan_modes\":[ \"Auto\", \"Low\", \"Med\", \"High\", \"Max\"], "
                                 "\"unique_id\":\"office\" }",
     mqtt_mode_command_topic, mqtt_current_state_topic, mqtt_swing_mode_command_topic,
     mqtt_current_state_topic, mqtt_fan_mode_command_topic, mqtt_current_state_topic,
@@ -332,18 +336,20 @@ void sendState()
           (((modeMask[0][0]^modeMask[3][0])&modeMask[3][1]) & mosi_frame[3]))
     currentmode = "cool";
 
-  if (0b01000000 & mosi_frame[3])
-      currentswing = "swing";
-  else if ((0b00100000 & mosi_frame[4]) && (0b00010000 & mosi_frame[4]))
-      currentswing = "4";
-  else if (0b00100000 & mosi_frame[4])
-      currentswing = "3";
-  else if (0b00010000 & mosi_frame[4])
-      currentswing = "2";
-  else if (!(0b00110000 & mosi_frame[4]))
-      currentswing = "1";
   if (current3D)
-    currentfan = "3DAuto";
+    currentswing = "3DAuto";
+  else if (0b01000000 & mosi_frame[3])
+    currentswing = "Swing";
+  else if ((0b00100000 & mosi_frame[4]) && (0b00010000 & mosi_frame[4]))
+    currentswing = "High";
+  else if (0b00100000 & mosi_frame[4])
+    currentswing = "Middle";
+  else if (0b00010000 & mosi_frame[4])
+    currentswing = "Low";
+  else if (!(0b00110000 & mosi_frame[4]))
+    currentswing = "Lowest";
+  if (currentFanAuto)
+    currentfan = "Auto";
   else if (!(mosi_frame[4] & 0b00000111))
     currentfan = "Low";
   else if (mosi_frame[4] & 0b00000001)
@@ -351,7 +357,7 @@ void sendState()
   else if ((mosi_frame[4] & 0b00000010) && !(mosi_frame[9] & 0b01000000))
     currentfan = "High";
   else if ((mosi_frame[4] & 0b00000010) && (mosi_frame[9] & 0b01000000))
-    currentfan = "Auto";
+    currentfan = "Max";
 
   int tempsetpoint = (mosi_frame[5] & 0x7F) /2; // bit masked so MSB ignored as we only need mosiframe[5](6:0)
   currenttargettemp = String(tempsetpoint).c_str();
@@ -371,10 +377,9 @@ void sendState()
 
 void sendPendingIRCmd()
 {
-  if (new3D && currentmode != "off")
+  if ((new3D || newFanAuto) && currentmode != "off")
   {
-    new3D = false;
-    current3D = true;
+    currentFanAuto = true;
     irrecv.disableIRIn();
     if (currentmode != "off") ac.setPower(true);
     else ac.setPower(false);
@@ -384,7 +389,39 @@ void sendPendingIRCmd()
     else if( currentmode == "dry")      ac.setMode(kMitsubishiHeavyDry);
     else if( currentmode == "fan_only") ac.setMode(kMitsubishiHeavyFan);
     ac.setTemp(currenttargettemp.toInt());
-    ac.set3D(true);
+    if (new3D)
+    {
+      new3D = false;
+      current3D = true;
+      ac.set3D(true);
+    }
+    else
+    {
+      if (currentswing == "Swing")
+        ac.setSwingVertical(kMitsubishiHeavy152SwingVAuto);
+      else if (currentswing == "High")
+        ac.setSwingVertical(kMitsubishiHeavy152SwingVHigh);
+      else if (currentswing == "Middle")
+        ac.setSwingVertical(kMitsubishiHeavy152SwingVMiddle);
+      else if (currentswing == "Low")
+        ac.setSwingVertical(kMitsubishiHeavy152SwingVLow);
+      else if (currentswing == "Lowest")
+        ac.setSwingVertical(kMitsubishiHeavy152SwingVLowest);
+    }
+    if (newFanAuto)
+    {
+      newFanAuto = false;
+      currentFanAuto = true;
+      ac.setFan(kMitsubishiHeavy152FanAuto);
+    }
+    else if (currentfan == "Low")
+      ac.setFan(kMitsubishiHeavy152FanLow);
+    else if (currentfan == "Med")
+      ac.setFan(kMitsubishiHeavy152FanMed);
+    else if (currentfan == "High")
+      ac.setFan(kMitsubishiHeavy152FanHigh);
+    else if (currentfan == "Max")
+      ac.setFan(kMitsubishiHeavy152FanMax);
     ac.send();
     irrecv.enableIRIn(true);
   }
