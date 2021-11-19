@@ -544,5 +544,6 @@ void loop()
       starttime = millis();
     }
   }
+  else initWiFi();
   yield();
 }
