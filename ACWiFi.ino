@@ -125,7 +125,8 @@ void callback(char* topic, byte* payload, unsigned int length)
      else if( messageReceived == "cool")     {newMode = 3; new3D = true; Serial.println("Turn On - Cool.");}
      else if( messageReceived == "auto")     {newMode = 4; Serial.println("Turn On - Auto.");} 
      else if( messageReceived == "dry")      {newMode = 5; Serial.println("Turn On - Dry.");}
-     else if( messageReceived == "fan_only")      {newMode = 6; Serial.println("Turn On - Fan.");}
+     else if( messageReceived == "fan_only") {newMode = 6; Serial.println("Turn On - Fan.");}
+     if ( messageReceived != "off" && currentFanAuto) newFanAuto = true;
   }
   else if (strcmp(topic, mqtt_swing_mode_command_topic) == 0)
   {
@@ -379,7 +380,6 @@ void sendPendingIRCmd()
 {
   if ((new3D || newFanAuto) && currentmode != "off")
   {
-    currentFanAuto = true;
     irrecv.disableIRIn();
     if (currentmode != "off") ac.setPower(true);
     else ac.setPower(false);
@@ -487,8 +487,6 @@ void setup()
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
-  //pinMode(16, OUTPUT); // turn on level shifter
-  //digitalWrite(16, 1); // turn on level shifter
   pinMode(SCK_PIN, INPUT);
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
