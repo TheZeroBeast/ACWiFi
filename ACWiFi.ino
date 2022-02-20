@@ -482,6 +482,13 @@ void initOTA()
   }
 }
 
+void wifiReconnect()
+{
+  initOTA();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -491,9 +498,7 @@ void setup()
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, OUTPUT);
   initWiFi();
-  initOTA();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
+  wifiReconnect();
   irrecv.enableIRIn(true); // start IR receiver
   irsend.begin();       // Start up the IR sender.
   sendDiscovery();
@@ -542,6 +547,6 @@ void loop()
       starttime = millis();
     }
   }
-  else initWiFi();
+  else wifiReconnect();
   yield();
 }
