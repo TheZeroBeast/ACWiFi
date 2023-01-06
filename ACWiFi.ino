@@ -1,5 +1,5 @@
 #include <ArduinoOTA.h>
-#include <ESP8266WiFi.h>
+//#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <IRremoteESP8266.h>
@@ -9,18 +9,18 @@
 #include <IRutils.h>
 
 // IO pin definitions
-#define SCK_PIN  14
-#define MOSI_PIN 13
-#define MISO_PIN 12
+#define SCK_PIN  7 // GPIO7 on Wemos S2 mini
+#define MOSI_PIN 11 // GPIO11 on Wemos S2 mini
+#define MISO_PIN 9 // GPIO9 on Wemos S2 mini
 
 // set devicename, used for ArduinoOTA
 String devicename = "ACWiFi-office";
 
 // set pin used for IR recv signal input
-const uint16_t kRecvPin = 5; // GPIO5 = D1 on Wemos D1/R1 mini
+const uint16_t kRecvPin = 35; // GPIO35 on Wemos S2 mini
 
 // set pin used for IR send signal output
-const uint16_t kIrLedPin  = 4; // GPIO4 = D2 on Wemos D1/R1 mini
+const uint16_t kIrLedPin  = 33; // GPIO33 on Wemos S2 mini
 
 // IRremote config and init
 const uint16_t kCaptureBufferSize = 1024;
@@ -457,7 +457,7 @@ void initWiFi()
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   digitalWrite(LED_BUILTIN, HIGH);
-  bool setSleepMode(WIFI_MODEM_SLEEP); // set modem sleep mode
+  //bool setSleepMode(WIFI_MODEM_SLEEP); // set modem sleep mode
 }
 
 void initOTA() 
